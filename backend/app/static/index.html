@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Outcome Exchange — Milestone 1 Vertical Slice</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #111827;
+      --card-border: #1f2937;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #059669;
+      --success-bg: rgba(5, 150, 105, 0.12);
+      --danger: #dc2626;
+      --danger-bg: rgba(220, 38, 38, 0.12);
+      --warning: #d97706;
+      --warning-bg: rgba(217, 119, 6, 0.12);
+      --code-bg: #030712;
+      --accent: #38bdf8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 1040px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 1.5rem;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+    .badge-primary { background: rgba(37, 99, 235, 0.2); color: #60a5fa; border: 1px solid rgba(37, 99, 235, 0.4); }
+    .badge-success { background: var(--success-bg); color: #34d399; border: 1px solid rgba(5, 150, 105, 0.4); }
+    .badge-warning { background: var(--warning-bg); color: #fbbf24; border: 1px solid rgba(217, 119, 6, 0.4); }
+    .badge-danger { background: var(--danger-bg); color: #f87171; border: 1px solid rgba(220, 38, 38, 0.4); }
+
+    h1 { font-size: 1.85rem; font-weight: 700; margin-bottom: 0.25rem; color: #fff; }
+    p.subtitle { color: var(--text-muted); font-size: 0.95rem; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .step-number {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.2rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn:hover { background: var(--primary-hover); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-success { background: var(--success); }
+    .btn-success:hover { background: #047857; }
+    .btn-danger { background: var(--danger); }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-outline { background: transparent; border: 1px solid var(--card-border); color: var(--text); }
+    .btn-outline:hover { background: rgba(255, 255, 255, 0.05); }
+
+    .btn-group { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+
+    pre, code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.825rem;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      max-height: 280px;
+      color: #e5e7eb;
+    }
+
+    .status-pill {
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+    }
+
+    .findings-list {
+      list-style: none;
+      margin-top: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .finding-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--card-border);
+    }
+    .finding-item.pass { border-left: 4px solid var(--success); }
+    .finding-item.fail { border-left: 4px solid var(--danger); }
+
+    .alert {
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      margin-top: 1rem;
+      border: 1px solid;
+    }
+    .alert-info { background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.3); color: #7dd3fc; }
+    .alert-warning { background: var(--warning-bg); border-color: rgba(217, 119, 6, 0.4); color: #fcd34d; }
+    .alert-danger { background: var(--danger-bg); border-color: rgba(220, 38, 38, 0.4); color: #fca5a5; }
+
+    .receipt-box {
+      border: 1px dashed #374151;
+      border-radius: 8px;
+      padding: 1rem;
+      background: rgba(17, 24, 39, 0.5);
+      margin-top: 1rem;
+    }
+    .receipt-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.35rem 0;
+      font-size: 0.85rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .receipt-row:last-child { border-bottom: none; }
+    .receipt-label { color: var(--text-muted); }
+    .receipt-val { font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <span class="badge badge-primary">Milestone 1 — Functional Vertical Slice</span>
+      <h1>Outcome Exchange</h1>
+      <p class="subtitle">Buyer-Governed AI Fulfillment with PayPal Authorization Hold & Deterministic Verification</p>
+    </header>
+
+    <div class="grid">
+      <!-- Step 1: Contract Intent -->
+      <div class="card" id="card-contract">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="step-number">1</span>
+            <span>Contract Definition: Spanish Launch Kit</span>
+          </div>
+          <span class="status-pill badge-primary" id="contract-status-badge">NOT CREATED</span>
+        </div>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+          Startup: <strong>TidyLedger</strong> &bull; Task: Spanish UI String Localization &bull; Budget: <strong>$40.00 USD</strong>
+        </p>
+        <pre id="source-strings-preview">{
+  "app_title": "TidyLedger — Modern Cloud Accounting",
+  "login_button": "Log in to your account",
+  "signup_prompt": "Don't have an account? Sign up here.",
+  "welcome_message": "Welcome back, {user}! Your financial dashboard is up to date.",
+  "password_reset_notice": "A password recovery link has been sent to {email}.",
+  "invoice_summary": "You have {count} pending invoices awaiting approval for {company}."
+}</pre>
+        <div class="btn-group">
+          <button class="btn" id="btn-create-contract" onclick="createContract()">Create Contract ($40.00)</button>
+          <span id="contract-id-display" style="font-size: 0.85rem; color: var(--text-muted); align-self: center;"></span>
+        </div>
+      </div>
+
+      <!-- Step 2: PayPal Authorization Hold -->
+      <div class="card" id="card-paypal">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="step-number">2</span>
+            <span>PayPal Sandbox Authorization Hold</span>
+          </div>
+          <span class="status-pill badge-warning" id="payment-status-badge">PENDING</span>
+        </div>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+          Places a server-authorized hold via PayPal REST v2 (<code>intent: "AUTHORIZE"</code>). Funds are held on PayPal rails, <strong>not captured</strong>.
+        </p>
+        <div id="paypal-actions" class="btn-group">
+          <button class="btn btn-outline" id="btn-create-order" onclick="createHoldOrder()" disabled>1. Create Hold Order</button>
+          <button class="btn btn-primary" id="btn-confirm-auth" onclick="confirmAuthorization()" disabled>2. Confirm Authorization Hold</button>
+        </div>
+        <div id="payment-details-box" style="margin-top: 1rem; display: none;">
+          <div class="receipt-box">
+            <div class="receipt-row"><span class="receipt-label">Order ID:</span><span class="receipt-val" id="disp-order-id">-</span></div>
+            <div class="receipt-row"><span class="receipt-label">Authorization ID:</span><span class="receipt-val" id="disp-auth-id">-</span></div>
+            <div class="receipt-row"><span class="receipt-label">Amount Held:</span><span class="receipt-val" id="disp-amount">$40.00 USD</span></div>
+            <div class="receipt-row"><span class="receipt-label">Provider Mode:</span><span class="receipt-val" id="disp-provider">-</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: AI Worker Agent Execution -->
+      <div class="card" id="card-agent">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="step-number">3</span>
+            <span>AI Localization Agent</span>
+          </div>
+          <span class="status-pill badge-primary" id="agent-status-badge">READY</span>
+        </div>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+          Specialist agent generates <code>es_translations.json</code>. Choose normal execution or simulate failure modes for live demonstration.
+        </p>
+        <div class="btn-group">
+          <button class="btn" id="btn-exec-normal" onclick="runAgent('normal')" disabled>Generate Translations (Normal)</button>
+          <button class="btn btn-outline" id="btn-exec-missing" onclick="runAgent('missing_key')" disabled>Simulate Missing Key (Failure Test)</button>
+          <button class="btn btn-outline" id="btn-exec-injection" onclick="runAgent('injection')" disabled>Simulate Injected Prompt</button>
+        </div>
+        <div id="artifact-container" style="margin-top: 1rem; display: none;">
+          <p style="font-size: 0.85rem; color: var(--accent); margin-bottom: 0.25rem;">Generated Artifact: <strong>es_translations.json</strong></p>
+          <pre id="artifact-content"></pre>
+        </div>
+      </div>
+
+      <!-- Step 4: Deterministic Verification -->
+      <div class="card" id="card-verification">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="step-number">4</span>
+            <span>Deterministic Verification Engine</span>
+          </div>
+          <span class="status-pill badge-primary" id="verify-status-badge">NOT RUN</span>
+        </div>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+          Executes non-subjective checks: JSON syntax, required key completeness, non-empty translations, and variable placeholder preservation (<code>{email}</code>).
+        </p>
+        <div class="btn-group">
+          <button class="btn" id="btn-verify" onclick="runVerification()" disabled>Run Deterministic Verification</button>
+        </div>
+        <div id="verification-findings-container" style="display: none;">
+          <ul class="findings-list" id="findings-list"></ul>
+        </div>
+      </div>
+
+      <!-- Step 5: Buyer Approval & Capture Release Gate -->
+      <div class="card" id="card-approval">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="step-number">5</span>
+            <span>Human Approval Gate & Final Capture</span>
+          </div>
+          <span class="status-pill badge-primary" id="gate-status-badge">LOCKED</span>
+        </div>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+          Backend strictly enforces: Capture is <strong>BLOCKED</strong> until verification passes AND human buyer gives explicit release sign-off.
+        </p>
+        <div id="gate-message" class="alert alert-info">Awaiting verification and authorization hold before release unlock.</div>
+        <div class="btn-group">
+          <button class="btn btn-success" id="btn-capture" onclick="capturePayment()" disabled>Approve Deliverable & Capture $40.00</button>
+          <button class="btn btn-danger" id="btn-void" onclick="voidHold()" disabled>Reject & Void Authorization Hold</button>
+        </div>
+      </div>
+
+      <!-- Step 6: Immutable Audit Receipt -->
+      <div class="card" id="card-receipt" style="display: none;">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="step-number">✓</span>
+            <span>Transaction Receipt & Immutable Audit Trail</span>
+          </div>
+          <span class="status-pill badge-success">COMPLETED</span>
+        </div>
+        <div class="receipt-box" id="final-receipt-details"></div>
+        <div style="margin-top: 1rem;">
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">Audit Trail Event Log:</p>
+          <pre id="audit-events-log"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentContractId = null;
+    let currentOrderId = null;
+    let currentAuthId = null;
+
+    async function createContract() {
+      try {
+        const res = await fetch("/api/contracts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: "Spanish Launch Kit Contract",
+            description: "Full Spanish UI string localization with verified placeholders for TidyLedger",
+            budget_amount: "40.00",
+            currency: "USD",
+            source_strings: JSON.parse(document.getElementById("source-strings-preview").innerText)
+          })
+        });
+        const data = await res.json();
+        currentContractId = data.id;
+        document.getElementById("contract-status-badge").innerText = data.status;
+        document.getElementById("contract-id-display").innerText = "ID: " + data.id.substring(0, 13) + "...";
+        document.getElementById("btn-create-contract").disabled = true;
+        document.getElementById("btn-create-order").disabled = false;
+        document.getElementById("btn-exec-normal").disabled = false;
+        document.getElementById("btn-exec-missing").disabled = false;
+        document.getElementById("btn-exec-injection").disabled = false;
+      } catch (err) {
+        alert("Error creating contract: " + err);
+      }
+    }
+
+    async function createHoldOrder() {
+      try {
+        const res = await fetch(`/api/contracts/${currentContractId}/create-hold-order`, { method: "POST" });
+        const data = await res.json();
+        currentOrderId = data.paypal_order_id;
+        document.getElementById("disp-order-id").innerText = currentOrderId;
+        document.getElementById("payment-details-box").style.display = "block";
+        document.getElementById("btn-create-order").disabled = true;
+        document.getElementById("btn-confirm-auth").disabled = false;
+        document.getElementById("payment-status-badge").innerText = "ORDER CREATED";
+      } catch (err) {
+        alert("Error creating order: " + err);
+      }
+    }
+
+    async function confirmAuthorization() {
+      try {
+        const res = await fetch(`/api/contracts/${currentContractId}/confirm-authorization`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paypal_order_id: currentOrderId })
+        });
+        const data = await res.json();
+        currentAuthId = data.paypal_authorization_id;
+        document.getElementById("disp-auth-id").innerText = currentAuthId;
+        document.getElementById("disp-provider").innerText = data.is_mock ? "PayPal Sandbox (Mock Fallback)" : "PayPal Sandbox Live REST API";
+        document.getElementById("payment-status-badge").className = "status-pill badge-success";
+        document.getElementById("payment-status-badge").innerText = "AUTHORIZED (HOLD ACTIVE)";
+        document.getElementById("btn-confirm-auth").disabled = true;
+        checkGateStatus();
+      } catch (err) {
+        alert("Error confirming authorization: " + err);
+      }
+    }
+
+    async function runAgent(mode) {
+      let query = "";
+      if (mode === "missing_key") query = "?simulate_missing_key=true";
+      if (mode === "injection") query = "?simulate_prompt_injection=true";
+
+      try {
+        const res = await fetch(`/api/contracts/${currentContractId}/execute${query}`, { method: "POST" });
+        const data = await res.json();
+        document.getElementById("artifact-content").innerText = data.content;
+        document.getElementById("artifact-container").style.display = "block";
+        document.getElementById("agent-status-badge").innerText = "DELIVERABLE READY";
+        document.getElementById("btn-verify").disabled = false;
+      } catch (err) {
+        alert("Error executing agent: " + err);
+      }
+    }
+
+    async function runVerification() {
+      try {
+        const res = await fetch(`/api/contracts/${currentContractId}/verify`, { method: "POST" });
+        const data = await res.json();
+        const list = document.getElementById("findings-list");
+        list.innerHTML = "";
+
+        data.findings.forEach(f => {
+          const li = document.createElement("li");
+          li.className = `finding-item ${f.passed ? "pass" : "fail"}`;
+          li.innerHTML = `
+            <div style="font-weight: 600; min-width: 160px;">${f.passed ? "✓ PASS" : "✗ FAIL"}: ${f.criterion_name}</div>
+            <div style="color: var(--text-muted);">${f.details}</div>
+          `;
+          list.appendChild(li);
+        });
+
+        document.getElementById("verification-findings-container").style.display = "block";
+        const vBadge = document.getElementById("verify-status-badge");
+        if (data.passed) {
+          vBadge.className = "status-pill badge-success";
+          vBadge.innerText = "ALL CRITERIA PASSED";
+        } else {
+          vBadge.className = "status-pill badge-danger";
+          vBadge.innerText = "VERIFICATION FAILED";
+        }
+        checkGateStatus(data.passed);
+      } catch (err) {
+        alert("Error running verification: " + err);
+      }
+    }
+
+    async function checkGateStatus(lastVerificationPassed) {
+      if (!currentContractId) return;
+      const cRes = await fetch(`/api/contracts/${currentContractId}`);
+      const contract = await cRes.json();
+
+      const gateMsg = document.getElementById("gate-message");
+      const btnCapture = document.getElementById("btn-capture");
+      const btnVoid = document.getElementById("btn-void");
+      const gateBadge = document.getElementById("gate-status-badge");
+
+      if (contract.status === "AWAITING_BUYER_APPROVAL") {
+        gateBadge.className = "status-pill badge-success";
+        gateBadge.innerText = "UNLOCKED FOR APPROVAL";
+        gateMsg.className = "alert alert-info";
+        gateMsg.innerHTML = "<strong>Verification Passed & Authorization Hold Active.</strong> You may now review deliverables and authorize the release of funds.";
+        btnCapture.disabled = false;
+        btnVoid.disabled = false;
+      } else if (contract.status === "VERIFIED_FAILED") {
+        gateBadge.className = "status-pill badge-danger";
+        gateBadge.innerText = "CAPTURE BLOCKED";
+        gateMsg.className = "alert alert-danger";
+        gateMsg.innerHTML = "<strong>Capture Blocked:</strong> Verification criteria failed. Money cannot be released. You may void the hold.";
+        btnCapture.disabled = true;
+        btnVoid.disabled = !currentAuthId;
+      }
+    }
+
+    async function capturePayment() {
+      try {
+        const res = await fetch(`/api/contracts/${currentContractId}/capture`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ buyer_approved: true })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert("Capture blocked by backend: " + (err.detail || err.error));
+          return;
+        }
+        const data = await res.json();
+        showReceipt();
+      } catch (err) {
+        alert("Capture error: " + err);
+      }
+    }
+
+    async function voidHold() {
+      try {
+        const res = await fetch(`/api/contracts/${currentContractId}/void`, { method: "POST" });
+        const data = await res.json();
+        alert("Authorization hold voided successfully. Funds released at $0 charge.");
+        showReceipt();
+      } catch (err) {
+        alert("Void error: " + err);
+      }
+    }
+
+    async function showReceipt() {
+      const res = await fetch(`/api/contracts/${currentContractId}/receipt`);
+      const receipt = await res.json();
+
+      document.getElementById("card-receipt").style.display = "block";
+      const box = document.getElementById("final-receipt-details");
+      box.innerHTML = `
+        <div class="receipt-row"><span class="receipt-label">Contract:</span><span class="receipt-val">${receipt.contract.title}</span></div>
+        <div class="receipt-row"><span class="receipt-label">Final Status:</span><span class="receipt-val">${receipt.contract.status}</span></div>
+        <div class="receipt-row"><span class="receipt-label">Amount Settled:</span><span class="receipt-val">$${receipt.payment.amount} ${receipt.payment.currency}</span></div>
+        <div class="receipt-row"><span class="receipt-label">PayPal Capture ID:</span><span class="receipt-val">${receipt.payment.paypal_capture_id || "N/A (Voided)"}</span></div>
+        <div class="receipt-row"><span class="receipt-label">Authorization Hold ID:</span><span class="receipt-val">${receipt.payment.paypal_authorization_id}</span></div>
+      `;
+
+      const auditPre = document.getElementById("audit-events-log");
+      auditPre.innerText = JSON.stringify(receipt.audit_events, null, 2);
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>
