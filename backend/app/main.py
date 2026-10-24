@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import Base, engine
-from app.routes import contracts, verification, payments
+from app.routes import contracts, verification, payments, buyer, mcp
 from app.state_machine import StateMachineError
 from app.paypal_client import PayPalClientError
 
@@ -15,7 +15,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="Outcome Exchange API",
     description="Buyer-Governed Multi-Agent AI Fulfillment with PayPal Authorization & Deterministic Verification",
-    version="0.1.0"
+    version="0.3.0"
 )
 
 # CORS configuration for frontend
@@ -43,6 +43,8 @@ async def paypal_client_error_handler(request: Request, exc: PayPalClientError):
     )
 
 # Include API routes
+app.include_router(buyer.router)
+app.include_router(mcp.router)
 app.include_router(contracts.router)
 app.include_router(verification.router)
 app.include_router(payments.router)

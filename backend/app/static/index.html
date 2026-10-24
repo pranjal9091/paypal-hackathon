@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Outcome Exchange — Milestone 2: Multi-Agent Execution</title>
+  <title>Outcome Exchange — Milestone 3: PayPal-Native Buyer Agent</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -39,7 +39,7 @@
     }
 
     .container {
-      max-width: 1080px;
+      max-width: 1100px;
       margin: 0 auto;
     }
 
@@ -172,6 +172,23 @@
       color: #e5e7eb;
     }
 
+    textarea.prompt-box {
+      width: 100%;
+      background: var(--code-bg);
+      border: 1px solid var(--card-border-focus);
+      border-radius: 8px;
+      padding: 0.75rem;
+      color: #f3f4f6;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      resize: vertical;
+      min-height: 70px;
+    }
+    textarea.prompt-box:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
     .status-pill {
       font-size: 0.75rem;
       font-weight: 600;
@@ -299,6 +316,21 @@
       margin-bottom: 0.5rem;
       font-weight: 600;
     }
+
+    .timeline-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    .timeline-item {
+      padding: 0.65rem 0.85rem;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.2);
+      border-left: 3px solid var(--accent);
+      font-size: 0.825rem;
+    }
   </style>
 </head>
 <body>
@@ -306,71 +338,95 @@
     <header>
       <div class="header-top">
         <div>
-          <span class="badge badge-purple">Milestone 2 &bull; Multi-Agent Execution</span>
+          <span class="badge badge-purple">Milestone 3 &bull; PayPal-Native Buyer Agent &amp; MCP</span>
           <h1>Outcome Exchange</h1>
-          <p class="subtitle">Buyer-Governed Multi-Agent AI Fulfillment with PayPal Authorization Hold & Deterministic Verification</p>
+          <p class="subtitle">Autonomous AI Procurement with Official PayPal Agent Toolkit &amp; Independent Deterministic Verification</p>
         </div>
         <div class="system-status-bar">
           <span class="badge badge-neutral" id="hdr-llm-badge">LLM: Checking...</span>
           <span class="badge badge-neutral" id="hdr-paypal-badge">PayPal: Checking...</span>
+          <span class="badge badge-primary" id="hdr-mcp-badge">MCP Tools: 3 Active</span>
         </div>
       </div>
     </header>
 
     <div class="grid">
-      <!-- Step 1: Contract Intent -->
-      <div class="card" id="card-contract">
+      <!-- Step 1: Buyer Agent Formulation -->
+      <div class="card" id="card-buyer">
         <div class="card-header">
           <div class="card-title">
             <span class="step-number">1</span>
-            <span>Contract Definition: Spanish Market Launch Kit</span>
+            <span>Buyer Agent: Natural-Language Outcome Formulation</span>
           </div>
-          <span class="status-pill badge-primary" id="contract-status-badge">NOT CREATED</span>
+          <span class="status-pill badge-primary" id="buyer-status-badge">AWAITING INPUT</span>
         </div>
         <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">
-          Startup: <strong>TidyLedger</strong> &bull; Deliverables: <strong>UI Translations + Spanish Landing Page Copy</strong> &bull; Budget: <strong>$40.00 USD</strong>
+          State your digital work requirements. The <strong>Buyer Agent</strong> will extract deliverables, propose acceptance criteria with rationale, and prepare a structured contract.
         </p>
-        <pre id="source-strings-preview">{
-  "app_title": "TidyLedger — Modern Cloud Accounting",
-  "login_button": "Log in to your account",
-  "signup_prompt": "Don't have an account? Sign up here.",
-  "welcome_message": "Welcome back, {user}! Your financial dashboard is up to date.",
-  "password_reset_notice": "A password recovery link has been sent to {email}.",
-  "invoice_summary": "You have {count} pending invoices awaiting approval for {company}."
-}</pre>
+
+        <textarea class="prompt-box" id="buyer-prompt-input">Prepare a Spanish launch kit for our product. Translate all UI strings, preserve interpolation placeholders, create Spanish landing-page copy, and verify both deliverables. Budget: $40.</textarea>
+
         <div class="btn-group">
-          <button class="btn" id="btn-create-contract" onclick="createContract()">Create Contract ($40.00)</button>
-          <span id="contract-id-display" style="font-size: 0.85rem; color: var(--text-muted); align-self: center;"></span>
+          <button class="btn btn-primary" id="btn-propose" onclick="proposeContract('normal')">Analyze &amp; Propose Contract</button>
+          <button class="btn btn-outline btn-sm" onclick="proposeContract('missing_info')">Simulate Incomplete Request</button>
+          <button class="btn btn-outline btn-sm" onclick="proposeContract('contradiction')">Simulate Contradictory Terms</button>
+        </div>
+
+        <!-- Proposal Display Card -->
+        <div id="proposal-box" style="margin-top: 1rem; display: none;">
+          <div class="alert alert-info" id="proposal-alert">
+            <h4 style="margin-bottom: 0.35rem; color: #fff;" id="proposal-title">-</h4>
+            <p style="font-size: 0.85rem;" id="proposal-desc">-</p>
+            <div style="margin-top: 0.5rem; font-size: 0.825rem;">
+              <strong>Extracted Budget:</strong> <span id="proposal-budget">$40.00 USD</span> &bull; 
+              <strong>Deliverables:</strong> <span id="proposal-deliverables">es_translations.json, landing_page_es.md, qa_report.json</span>
+            </div>
+            <div style="margin-top: 0.5rem; font-size: 0.825rem; color: #cbd5e1;">
+              <strong>Acceptance Criteria Rationale:</strong>
+              <div id="proposal-rationale" style="margin-top: 0.25rem; font-style: italic;"></div>
+            </div>
+          </div>
+
+          <div id="clarification-alert" class="alert alert-warning" style="display: none;"></div>
+
+          <div class="btn-group" id="confirm-btn-group" style="display: none;">
+            <button class="btn btn-success" id="btn-confirm-terms" onclick="confirmContractProposal()">
+              Buyer Sign-Off: Confirm Terms &amp; Create Contract ($40.00)
+            </button>
+            <span id="contract-id-display" style="font-size: 0.85rem; color: var(--text-muted); align-self: center;"></span>
+          </div>
         </div>
       </div>
 
-      <!-- Step 2: PayPal Authorization Hold -->
+      <!-- Step 2: PayPal Agent Toolkit & MCP Hold -->
       <div class="card" id="card-paypal">
         <div class="card-header">
           <div class="card-title">
             <span class="step-number">2</span>
-            <span>PayPal Sandbox Authorization Hold</span>
+            <span>PayPal Agent Toolkit &amp; Authorization Hold</span>
           </div>
-          <span class="status-pill badge-warning" id="payment-status-badge">PENDING</span>
+          <span class="status-pill badge-warning" id="payment-status-badge">NOT INITIATED</span>
         </div>
         <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">
-          Places a server-authorized hold via PayPal REST v2 (<code>intent: "AUTHORIZE"</code>). Funds are held on PayPal rails, <strong>never captured prematurely</strong>.
+          Executes official PayPal Agent Toolkit tools (<code>paypal_create_order</code>) with <code>intent: "AUTHORIZE"</code>. Funds are held on PayPal rails, <strong>never captured prematurely</strong>.
         </p>
+
         <div id="paypal-actions" class="btn-group">
-          <button class="btn btn-outline" id="btn-create-order" onclick="createHoldOrder()" disabled>1. Create Hold Order</button>
+          <button class="btn btn-outline" id="btn-mcp-order" onclick="createOrderViaMCP()" disabled>1. Create Order via PayPal Agent Toolkit</button>
           <button class="btn btn-primary" id="btn-confirm-auth" onclick="confirmAuthorization()" disabled>2. Confirm Authorization Hold</button>
         </div>
+
         <div id="payment-details-box" style="margin-top: 1rem; display: none;">
           <div class="receipt-box">
             <div class="receipt-row"><span class="receipt-label">PayPal Order ID:</span><span class="receipt-val" id="disp-order-id">-</span></div>
             <div class="receipt-row"><span class="receipt-label">Authorization Hold ID:</span><span class="receipt-val" id="disp-auth-id">-</span></div>
-            <div class="receipt-row"><span class="receipt-label">Contract Amount Held:</span><span class="receipt-val" id="disp-amount">$40.00 USD</span></div>
+            <div class="receipt-row"><span class="receipt-label">MCP Correlation ID:</span><span class="receipt-val" id="disp-corr-id">-</span></div>
             <div class="receipt-row"><span class="receipt-label">Payment Rail Mode:</span><span class="receipt-val" id="disp-provider">-</span></div>
           </div>
         </div>
       </div>
 
-      <!-- Step 3: Multi-Agent Execution -->
+      <!-- Step 3: Multi-Agent Fulfillment Team -->
       <div class="card" id="card-agents">
         <div class="card-header">
           <div class="card-title">
@@ -380,7 +436,7 @@
           <span class="status-pill badge-primary" id="agents-status-badge">READY</span>
         </div>
         <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">
-          Three specialized agents collaborate to fulfill the contract:
+          Specialist agents execute tasks to fulfill confirmed contract terms:
         </p>
 
         <div class="agents-grid">
@@ -417,11 +473,11 @@
           <div class="demo-scenarios-title">Interactive Demo &amp; Regression Scenarios</div>
           <div class="btn-group" style="margin-top: 0.25rem;">
             <button class="btn btn-sm btn-primary" id="btn-exec-normal" onclick="runAgents('normal')" disabled>▶ Run Multi-Agent Team (Happy Path)</button>
-            <button class="btn btn-sm btn-outline" id="btn-fail-section" onclick="runAgents('missing_section')" disabled>Simulate Missing Section (Landing Page)</button>
-            <button class="btn btn-sm btn-outline" id="btn-fail-key" onclick="runAgents('missing_key')" disabled>Simulate Missing Key (Translations)</button>
-            <button class="btn btn-sm btn-outline" id="btn-fail-placeholder" onclick="runAgents('broken_placeholder')" disabled>Simulate Corrupted Placeholder</button>
+            <button class="btn btn-sm btn-outline" id="btn-fail-section" onclick="runAgents('missing_section')" disabled>Simulate Missing Section</button>
             <button class="btn btn-sm btn-outline" id="btn-fail-claim" onclick="runAgents('unsupported_claim')" disabled>Simulate Unsupported Claim</button>
-            <button class="btn btn-sm btn-outline" id="btn-fail-injection" onclick="runAgents('injection')" disabled>Simulate Prompt Injection</button>
+            <button class="btn btn-sm btn-outline" id="btn-fail-key" onclick="runAgents('missing_key')" disabled>Simulate Missing Key</button>
+            <button class="btn btn-sm btn-outline" id="btn-fail-placeholder" onclick="runAgents('broken_placeholder')" disabled>Simulate Corrupted Placeholder</button>
+            <button class="btn btn-sm btn-outline" id="btn-fail-injection" onclick="runAgents('injection')" disabled>Simulate Injected Prompt</button>
           </div>
         </div>
 
@@ -446,17 +502,17 @@
         </div>
       </div>
 
-      <!-- Step 4: Deterministic Verification -->
+      <!-- Step 4: Deterministic Bundle Verification -->
       <div class="card" id="card-verification">
         <div class="card-header">
           <div class="card-title">
             <span class="step-number">4</span>
-            <span>Independent Multi-Artifact Verification Engine</span>
+            <span>Independent Deterministic Verification Engine</span>
           </div>
           <span class="status-pill badge-primary" id="verify-status-badge">NOT RUN</span>
         </div>
         <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">
-          Executes non-subjective, deterministic rules against the entire deliverable bundle. Payment release is strictly blocked if any mandatory check fails.
+          Executes non-subjective rules against deliverable files. Payment release remains strictly locked if any mandatory check fails.
         </p>
         <div class="btn-group">
           <button class="btn" id="btn-verify" onclick="runVerification()" disabled>Run Full Bundle Verification</button>
@@ -471,12 +527,12 @@
         </div>
       </div>
 
-      <!-- Step 5: Buyer Approval & Capture Release Gate -->
+      <!-- Step 5: Human-Controlled Payment Release Gate -->
       <div class="card" id="card-approval">
         <div class="card-header">
           <div class="card-title">
             <span class="step-number">5</span>
-            <span>Buyer Sign-Off &amp; Server-Side Payment Gate</span>
+            <span>Human Buyer Sign-Off &amp; Server-Side Payment Gate</span>
           </div>
           <span class="status-pill badge-primary" id="gate-status-badge">LOCKED</span>
         </div>
@@ -485,36 +541,38 @@
         </p>
         <div id="gate-message" class="alert alert-info">Awaiting multi-artifact verification and active authorization hold.</div>
         <div class="btn-group">
-          <button class="btn btn-success" id="btn-capture" onclick="capturePayment()" disabled>Approve Bundle &amp; Capture $40.00</button>
+          <button class="btn btn-success" id="btn-capture" onclick="capturePayment()" disabled>Approve Deliverables &amp; Capture $40.00</button>
           <button class="btn btn-danger" id="btn-void" onclick="voidHold()" disabled>Reject Deliverables &amp; Void Authorization Hold</button>
         </div>
       </div>
 
-      <!-- Step 6: Immutable Audit Receipt -->
-      <div class="card" id="card-receipt" style="display: none;">
+      <!-- Step 6: Auditable Reasoning Timeline & Receipt -->
+      <div class="card" id="card-timeline" style="display: none;">
         <div class="card-header">
           <div class="card-title">
-            <span class="step-number">✓</span>
-            <span>Transaction Receipt &amp; Immutable Audit Trail</span>
+            <span class="step-number">6</span>
+            <span>Auditable Reasoning Timeline &amp; Settlement Receipt</span>
           </div>
-          <span class="status-pill badge-success">COMPLETED</span>
+          <span class="status-pill badge-success" id="timeline-status-badge">ACTIVE</span>
         </div>
-        <div class="receipt-box" id="final-receipt-details"></div>
+        <div id="final-receipt-details" class="receipt-box"></div>
         <div style="margin-top: 1rem;">
-          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">Authoritative Audit Trail Log:</p>
-          <pre id="audit-events-log"></pre>
+          <p style="font-size: 0.85rem; color: var(--accent); margin-bottom: 0.5rem; font-weight: 600;">Authoritative Activity Timeline:</p>
+          <ul class="timeline-list" id="timeline-list"></ul>
         </div>
       </div>
     </div>
   </div>
 
   <script>
+    let currentProposal = null;
     let currentContractId = null;
     let currentOrderId = null;
     let currentAuthId = null;
+    let currentCorrId = null;
     let deliverablesMap = {};
 
-    // Initial system status check
+    // Initial system health load
     async function loadSystemHealth() {
       try {
         const res = await fetch("/api/health");
@@ -526,7 +584,7 @@
           llmBadge.innerText = `LIVE AI: ${data.llm_provider.toUpperCase()}`;
         } else {
           llmBadge.className = "badge badge-warning";
-          llmBadge.innerText = `OFFLINE FALLBACK: Local Rule Engine`;
+          llmBadge.innerText = `AI: Deterministic Fallback`;
         }
 
         const ppBadge = document.getElementById("hdr-paypal-badge");
@@ -543,56 +601,123 @@
     }
     loadSystemHealth();
 
-    async function createContract() {
+    // 1. Propose Contract Terms via Buyer Agent
+    async function proposeContract(mode) {
+      const prompt = document.getElementById("buyer-prompt-input").value;
+      const payload = {
+        prompt: prompt,
+        simulate_missing_info: (mode === 'missing_info'),
+        simulate_contradiction: (mode === 'contradiction')
+      };
+
       try {
-        const res = await fetch("/api/contracts", {
+        const res = await fetch("/api/buyer/propose", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        currentProposal = data;
+
+        document.getElementById("proposal-box").style.display = "block";
+        const alertBox = document.getElementById("proposal-alert");
+        const clarBox = document.getElementById("clarification-alert");
+        const confirmBtns = document.getElementById("confirm-btn-group");
+
+        if (!data.is_valid) {
+          alertBox.style.display = "none";
+          clarBox.style.display = "block";
+          clarBox.innerHTML = `<strong>Clarification Requested by Buyer Agent:</strong> ${data.clarification_needed}`;
+          confirmBtns.style.display = "none";
+          document.getElementById("buyer-status-badge").className = "status-pill badge-warning";
+          document.getElementById("buyer-status-badge").innerText = "NEEDS CLARIFICATION";
+        } else {
+          alertBox.style.display = "block";
+          clarBox.style.display = "none";
+          confirmBtns.style.display = "flex";
+
+          document.getElementById("proposal-title").innerText = data.title;
+          document.getElementById("proposal-desc").innerText = data.description;
+          document.getElementById("proposal-budget").innerText = `$${data.budget_amount} ${data.currency}`;
+          document.getElementById("proposal-deliverables").innerText = data.requested_deliverables.join(", ");
+          document.getElementById("proposal-rationale").innerText = data.acceptance_criteria_rationale;
+
+          document.getElementById("buyer-status-badge").className = "status-pill badge-success";
+          document.getElementById("buyer-status-badge").innerText = "PROPOSAL READY";
+        }
+      } catch (e) {
+        alert("Error formulating proposal: " + e);
+      }
+    }
+
+    // 2. Buyer Confirms Terms -> Creates Authoritative Contract
+    async function confirmContractProposal() {
+      if (!currentProposal) return;
+      try {
+        const res = await fetch("/api/buyer/confirm", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            title: "Spanish Launch Kit Contract",
-            description: "Spanish UI string localization + Spanish landing page copy for TidyLedger",
-            budget_amount: "40.00",
-            currency: "USD",
-            source_strings: JSON.parse(document.getElementById("source-strings-preview").innerText)
+            title: currentProposal.title,
+            description: currentProposal.description,
+            budget_amount: currentProposal.budget_amount,
+            currency: currentProposal.currency,
+            source_strings: currentProposal.source_strings
           })
         });
         const data = await res.json();
         currentContractId = data.id;
-        document.getElementById("contract-status-badge").innerText = data.status;
-        document.getElementById("contract-id-display").innerText = "ID: " + data.id.substring(0, 13) + "...";
-        document.getElementById("btn-create-contract").disabled = true;
-        document.getElementById("btn-create-order").disabled = false;
-        
+
+        document.getElementById("contract-id-display").innerText = "Contract ID: " + data.id.substring(0, 13) + "...";
+        document.getElementById("btn-confirm-terms").disabled = true;
+        document.getElementById("btn-mcp-order").disabled = false;
         enableAgentButtons(true);
-      } catch (err) {
-        alert("Error creating contract: " + err);
+        refreshTimeline();
+      } catch (e) {
+        alert("Error confirming contract: " + e);
       }
     }
 
-    function enableAgentButtons(enabled) {
-      document.getElementById("btn-exec-normal").disabled = !enabled;
-      document.getElementById("btn-fail-section").disabled = !enabled;
-      document.getElementById("btn-fail-key").disabled = !enabled;
-      document.getElementById("btn-fail-placeholder").disabled = !enabled;
-      document.getElementById("btn-fail-claim").disabled = !enabled;
-      document.getElementById("btn-fail-injection").disabled = !enabled;
-    }
-
-    async function createHoldOrder() {
+    // 3. Create Order via Official PayPal Agent Toolkit Tool
+    async function createOrderViaMCP() {
       try {
-        const res = await fetch(`/api/contracts/${currentContractId}/create-hold-order`, { method: "POST" });
+        const res = await fetch("/api/mcp/tools/call", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tool_name: "paypal_create_order",
+            arguments: {
+              amount: currentProposal ? currentProposal.budget_amount : "40.00",
+              currency_code: currentProposal ? currentProposal.currency : "USD",
+              notes: currentProposal ? currentProposal.description : "Spanish Launch Kit Contract"
+            },
+            contract_id: currentContractId
+          })
+        });
         const data = await res.json();
-        currentOrderId = data.paypal_order_id;
+        if (data.status !== "SUCCESS") {
+          alert("MCP tool execution error: " + data.error);
+          return;
+        }
+
+        currentOrderId = data.result.order_id;
+        currentCorrId = data.correlation_id;
+
         document.getElementById("disp-order-id").innerText = currentOrderId;
+        document.getElementById("disp-corr-id").innerText = currentCorrId;
+        document.getElementById("disp-provider").innerText = data.is_mock ? "PayPal Agent Toolkit (Sandbox Mock)" : "PayPal Agent Toolkit (Sandbox Live)";
+
         document.getElementById("payment-details-box").style.display = "block";
-        document.getElementById("btn-create-order").disabled = true;
+        document.getElementById("btn-mcp-order").disabled = true;
         document.getElementById("btn-confirm-auth").disabled = false;
-        document.getElementById("payment-status-badge").innerText = "ORDER CREATED";
-      } catch (err) {
-        alert("Error creating order: " + err);
+        document.getElementById("payment-status-badge").innerText = "ORDER CREATED (MCP)";
+        refreshTimeline();
+      } catch (e) {
+        alert("Error calling PayPal Agent Toolkit tool: " + e);
       }
     }
 
+    // 4. Confirm Authorization Hold
     async function confirmAuthorization() {
       try {
         const res = await fetch(`/api/contracts/${currentContractId}/confirm-authorization`, {
@@ -603,16 +728,27 @@
         const data = await res.json();
         currentAuthId = data.paypal_authorization_id;
         document.getElementById("disp-auth-id").innerText = currentAuthId;
-        document.getElementById("disp-provider").innerText = data.is_mock ? "PayPal Sandbox (Mock Fallback)" : "PayPal Sandbox Live REST API";
+
         document.getElementById("payment-status-badge").className = "status-pill badge-success";
         document.getElementById("payment-status-badge").innerText = "AUTHORIZED (HOLD ACTIVE)";
         document.getElementById("btn-confirm-auth").disabled = true;
         checkGateStatus();
+        refreshTimeline();
       } catch (err) {
         alert("Error confirming authorization: " + err);
       }
     }
 
+    function enableAgentButtons(enabled) {
+      document.getElementById("btn-exec-normal").disabled = !enabled;
+      document.getElementById("btn-fail-section").disabled = !enabled;
+      document.getElementById("btn-fail-claim").disabled = !enabled;
+      document.getElementById("btn-fail-key").disabled = !enabled;
+      document.getElementById("btn-fail-placeholder").disabled = !enabled;
+      document.getElementById("btn-fail-injection").disabled = !enabled;
+    }
+
+    // 5. Run Specialist Agents
     async function runAgents(mode) {
       let query = "";
       if (mode === "missing_key") query = "?simulate_missing_key=true";
@@ -634,7 +770,6 @@
           });
         }
 
-        // Render Deliverable Tabs Content
         document.getElementById("tab-content-loc").innerText = deliverablesMap["es_translations.json"] || "";
         document.getElementById("tab-content-content").innerText = deliverablesMap["landing_page_es.md"] || "";
         document.getElementById("tab-content-qa").innerText = deliverablesMap["qa_report.json"] || "";
@@ -647,7 +782,6 @@
         document.getElementById("disp-agent-provider").innerText = summary.overall_provider || "deterministic-fallback";
         document.getElementById("disp-agent-artifacts").innerText = `${data.deliverables.length} files generated`;
 
-        // Update agent badges
         document.getElementById("agent-loc-badge").className = "badge badge-success";
         document.getElementById("agent-loc-badge").innerText = "COMPLETED";
 
@@ -661,6 +795,7 @@
         document.getElementById("agents-status-badge").innerText = "BUNDLE READY";
 
         document.getElementById("btn-verify").disabled = false;
+        refreshTimeline();
       } catch (err) {
         alert("Error executing agents: " + err);
       }
@@ -676,6 +811,7 @@
       document.getElementById("tab-content-qa").style.display = tab === 'qa' ? 'block' : 'none';
     }
 
+    // 6. Run Independent Verification
     async function runVerification() {
       try {
         const res = await fetch(`/api/contracts/${currentContractId}/verify`, { method: "POST" });
@@ -724,39 +860,47 @@
           vBadge.className = "status-pill badge-danger";
           vBadge.innerText = "MANDATORY VERIFICATION FAILED";
         }
-        checkGateStatus(data.passed);
+        checkGateStatus();
+        refreshTimeline();
       } catch (err) {
         alert("Error running verification: " + err);
       }
     }
 
+    // 7. Check Payment Gate Status & Render Agent Reasoning
     async function checkGateStatus() {
       if (!currentContractId) return;
-      const cRes = await fetch(`/api/contracts/${currentContractId}`);
-      const contract = await cRes.json();
+      const res = await fetch(`/api/buyer/contracts/${currentContractId}/reasoning`);
+      const data = await res.json();
 
       const gateMsg = document.getElementById("gate-message");
       const btnCapture = document.getElementById("btn-capture");
       const btnVoid = document.getElementById("btn-void");
       const gateBadge = document.getElementById("gate-status-badge");
 
-      if (contract.status === "AWAITING_BUYER_APPROVAL") {
+      gateMsg.innerHTML = `<strong>Buyer Agent Analysis:</strong> ${data.reasoning_summary}`;
+
+      if (data.current_status === "AWAITING_BUYER_APPROVAL") {
         gateBadge.className = "status-pill badge-success";
         gateBadge.innerText = "UNLOCKED FOR APPROVAL";
         gateMsg.className = "alert alert-success";
-        gateMsg.innerHTML = "<strong>Verification Passed &amp; Authorization Hold Active.</strong> All mandatory deterministic criteria have passed. You may now inspect deliverables and release funds.";
         btnCapture.disabled = false;
         btnVoid.disabled = false;
-      } else if (contract.status === "VERIFIED_FAILED") {
+      } else if (data.current_status === "VERIFIED_FAILED") {
         gateBadge.className = "status-pill badge-danger";
         gateBadge.innerText = "CAPTURE STRICTLY BLOCKED";
         gateMsg.className = "alert alert-danger";
-        gateMsg.innerHTML = "<strong>Payment Release Blocked:</strong> Mandatory verification failed. Server payment gate will reject any capture attempts. You can re-execute cleanly or void the authorization hold.";
         btnCapture.disabled = true;
         btnVoid.disabled = !currentAuthId;
+      } else if (data.current_status === "PAID") {
+        gateBadge.className = "status-pill badge-success";
+        gateBadge.innerText = "SETTLED (PAID)";
+        btnCapture.disabled = true;
+        btnVoid.disabled = true;
       }
     }
 
+    // 8. Capture Payment (Human-Controlled Release)
     async function capturePayment() {
       try {
         const res = await fetch(`/api/contracts/${currentContractId}/capture`, {
@@ -770,40 +914,65 @@
           return;
         }
         const data = await res.json();
-        showReceipt();
+        checkGateStatus();
+        refreshTimeline();
       } catch (err) {
         alert("Capture error: " + err);
       }
     }
 
+    // 9. Void Hold
     async function voidHold() {
       try {
         const res = await fetch(`/api/contracts/${currentContractId}/void`, { method: "POST" });
-        const data = await res.json();
         alert("Authorization hold voided successfully. Funds released at $0 charge.");
-        showReceipt();
+        checkGateStatus();
+        refreshTimeline();
       } catch (err) {
         alert("Void error: " + err);
       }
     }
 
-    async function showReceipt() {
-      const res = await fetch(`/api/contracts/${currentContractId}/receipt`);
-      const receipt = await res.json();
+    // 10. Refresh Auditable Activity Timeline
+    async function refreshTimeline() {
+      if (!currentContractId) return;
+      try {
+        const res = await fetch(`/api/buyer/contracts/${currentContractId}/reasoning`);
+        const data = await res.json();
 
-      document.getElementById("card-receipt").style.display = "block";
-      const box = document.getElementById("final-receipt-details");
-      box.innerHTML = `
-        <div class="receipt-row"><span class="receipt-label">Contract:</span><span class="receipt-val">${receipt.contract.title}</span></div>
-        <div class="receipt-row"><span class="receipt-label">Final Status:</span><span class="receipt-val">${receipt.contract.status}</span></div>
-        <div class="receipt-row"><span class="receipt-label">Amount Settled:</span><span class="receipt-val">$${receipt.payment.amount} ${receipt.payment.currency}</span></div>
-        <div class="receipt-row"><span class="receipt-label">PayPal Capture ID:</span><span class="receipt-val">${receipt.payment.paypal_capture_id || "N/A (Voided)"}</span></div>
-        <div class="receipt-row"><span class="receipt-label">Authorization Hold ID:</span><span class="receipt-val">${receipt.payment.paypal_authorization_id}</span></div>
-      `;
+        document.getElementById("card-timeline").style.display = "block";
+        const list = document.getElementById("timeline-list");
+        list.innerHTML = "";
 
-      const auditPre = document.getElementById("audit-events-log");
-      auditPre.innerText = JSON.stringify(receipt.audit_events, null, 2);
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        data.timeline.forEach(item => {
+          const li = document.createElement("li");
+          li.className = "timeline-item";
+          li.innerHTML = `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+              <strong style="color: var(--accent);">${item.event_type}</strong>
+              <span style="color: var(--text-muted); font-size: 0.75rem;">Actor: ${item.actor}</span>
+            </div>
+            <pre style="margin-top: 0.25rem; padding: 0.5rem; font-size: 0.775rem;">${JSON.stringify(item.details, null, 2)}</pre>
+          `;
+          list.appendChild(li);
+        });
+
+        // If settled, render receipt box
+        if (data.current_status === "PAID") {
+          const rRes = await fetch(`/api/contracts/${currentContractId}/receipt`);
+          const rData = await rRes.json();
+          const box = document.getElementById("final-receipt-details");
+          box.innerHTML = `
+            <div class="receipt-row"><span class="receipt-label">Contract:</span><span class="receipt-val">${rData.contract.title}</span></div>
+            <div class="receipt-row"><span class="receipt-label">Settlement Status:</span><span class="receipt-val">${rData.contract.status}</span></div>
+            <div class="receipt-row"><span class="receipt-label">Amount Settled:</span><span class="receipt-val">$${rData.payment.amount} ${rData.payment.currency}</span></div>
+            <div class="receipt-row"><span class="receipt-label">PayPal Capture ID:</span><span class="receipt-val">${rData.payment.paypal_capture_id || "N/A (Voided)"}</span></div>
+            <div class="receipt-row"><span class="receipt-label">Authorization Hold ID:</span><span class="receipt-val">${rData.payment.paypal_authorization_id}</span></div>
+          `;
+        }
+      } catch (e) {
+        console.error("Error refreshing timeline:", e);
+      }
     }
   </script>
 </body>
