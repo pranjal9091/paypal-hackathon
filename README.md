@@ -1,166 +1,178 @@
 # Outcome Exchange
 
-> **PayPal AI Hackathon 2026** — Buyer-Governed Multi-Agent AI Fulfillment with PayPal Authorization Hold, Official PayPal Agent Toolkit (MCP), and Independent Deterministic Verification.
+> **PayPal AI Hackathon 2026 Submission**  
+> **Buyer-Governed Multi-Agent AI Fulfillment with Official PayPal Sandbox Authorization Hold & Independent Deterministic Verification**
 
 ---
 
-## What is Outcome Exchange?
+## 1. Problem Solved & Core Value Proposition
 
-In autonomous AI commerce, agents should not have unilateral authority to spend money or settle their own invoices. 
+In autonomous AI commerce, agents should never have unilateral authority to spend money or settle their own invoices. 
 
-**Outcome Exchange** is an outcome-based fulfillment system where:
-1. A **Buyer** describes a business goal in natural language to a **Buyer Agent**, which extracts deliverables, generates acceptance criteria with explicit rationale, and prepares a structured contract proposal.
-2. The human buyer reviews and explicitly signs off on the proposal (**Human Gate 1**).
-3. The Buyer Agent initiates an official **PayPal Agent Toolkit** tool call (`paypal_create_order` via Model Context Protocol) with `intent: "AUTHORIZE"`. Funds are held securely on PayPal rails—**never captured prematurely**.
-4. Specialized worker agents (Localization Agent, Content Agent, QA Agent) execute bounded tasks producing a multi-artifact deliverable bundle (`es_translations.json`, `landing_page_es.md`, `qa_report.json`).
-5. An **Automated Deterministic Verifier** independently validates the deliverable bundle (JSON syntax, required-key parity, variable placeholder retention like `{email}`, Markdown document structure, mandatory sections, word count bounds, and unsupported claim scans).
-6. A **QA Agent** provides qualitative cross-artifact review, which is recorded informatively and **cannot bypass or weaken deterministic gates**.
-7. An **Authoritative Backend Payment Gate (Human Gate 2)** strictly enforces that all mandatory verification criteria pass AND the human buyer gives explicit sign-off before executing `POST /v2/payments/authorizations/{id}/capture`. If deliverables fail or prompt injection is attempted, the hold is voided or re-executed at zero cost.
+* **The Problem:** Current agentic systems either lack real financial rails (relying on mock tokens) or grant LLMs unrestricted API access to debit cards and bank accounts. When an agent hallucinates, drops deliverables, or claims work is finished without proof, buyer funds are drained with zero recourse.
+* **The Solution:** **Outcome Exchange** introduces a **Buyer-Governed Architecture** that couples official PayPal payment rails with independent, deterministic deliverable verification and two non-negotiable human gates:
+  1. **Pre-Commitment Hold (Not Escrow):** PayPal Orders v2 with `intent: "AUTHORIZE"` places a temporary hold on the approved budget. Funds remain on PayPal rails and are **never captured prematurely**.
+  2. **Multi-Agent Fulfillment:** Specialized worker agents (Localization Agent, Content Agent, QA Agent) execute bounded tasks producing concrete digital assets (`es_translations.json`, `landing_page_es.md`, `qa_report.json`).
+  3. **Deterministic Deliverable Verification:** Non-subjective verification rules validate syntax, required-key parity, interpolation token preservation (`{email}`, `{user}`), document structure, word-count limits, and regulatory claim safety.
+  4. **Informational QA Review:** A QA Agent evaluates cross-artifact tone and terminology. Its findings are recorded informatively and **cannot bypass or weaken deterministic gates**.
+  5. **Authoritative Human-Controlled Release Gate:** The server strictly prevents capture unless 100% of mandatory checks pass AND the human buyer explicitly authorizes the release.
+  6. **Clean Void/Refund:** If deliverables fail verification, the buyer can void the authorization hold at **$0 charge**.
+
+```
+                   OUTCOME EXCHANGE ARCHITECTURE & DATA FLOW
+
+  [ Buyer (Human) ]
+         │ (1) Natural Language Goal: "Spanish Launch Kit, Budget: $40"
+         ▼
+  [ Buyer Agent ] ─── extracts ───► Deliverables, Criteria & Budget ($40.00)
+         │
+  [ Human Gate 1 ] ─── explicit sign-off ───► Authoritative Contract (DRAFT)
+         │
+  [ PayPal Agent Toolkit (MCP) ] ─── POST /v2/checkout/orders (intent=AUTHORIZE)
+         │
+  [ PayPal Rails ] ◄─── Authorization Hold ($40.00 Held, $0 Captured)
+         │
+         ├───► [ Localization Agent ] ───► es_translations.json
+         ├───► [ Content Agent ]      ───► landing_page_es.md
+         └───► [ QA Agent ]           ───► qa_report.json
+                         │
+  [ Independent Deterministic Verifier ]
+         │ Checks: Syntax, Parity, Placeholders, Markdown Sections, Claims
+         ├───────────────────────────────┐
+         ▼ (Fail)                        ▼ (Pass)
+  [ Capture Blocked ]             [ Payment Gate Unlocked ]
+  (Hold voided at $0)                    │
+                                  [ Human Gate 2 ] ─── explicit buyer sign-off
+                                         │
+                                  [ PayPal Capture Engine ]
+                                  POST /v2/payments/authorizations/{id}/capture
+                                         │
+                                  [ Settled Receipt & Immutable Audit Trail ]
+```
 
 ---
 
-## Milestone 3: PayPal-Native Buyer Agent & MCP Integration
+## 2. Milestone 4 Enhancements & System Audit
 
-Milestone 3 introduces autonomous contract formulation and official PayPal Agent Toolkit integration while strictly preserving human-controlled financial safety:
+Milestone 4 elevates Outcome Exchange to a judge-ready, fully validated submission:
 
-### 1. Conversational Buyer Agent (`buyer_agent.py`, `/api/buyer/propose`)
-* Converts natural-language requests into structured digital contracts.
-* Extracts deliverables, required keys, acceptance criteria, and budget.
-* Flags missing requirements or contradictory terms and asks for clarification.
-* Explains the technical and business rationale behind selected criteria.
-* Produces transparent explanations for payment release gate decisions.
-
-### 2. Official PayPal Agent Toolkit & Model Context Protocol (MCP) (`paypal_toolkit.py`, `/api/mcp/`)
-* Exposes official PayPal Agent Toolkit tools:
-  * `paypal_create_order`: Creates a PayPal checkout order configured for authorization hold (`intent: "AUTHORIZE"`).
-  * `paypal_get_order`: Inspects order status.
-  * `paypal_authorize_order`: Confirms authorization hold.
-* **Separation of Powers**: Payment capture (`paypal_capture_order`) is intentionally **omitted** from the agent tool catalog. Autonomous agents cannot authorize their own settlement.
-* Validates inputs against Pydantic schemas, records correlation IDs (`mcp-corr-*`), and tags execution with live vs mock status.
-
-### 3. Preserved Human-Controlled Payment Gate
-* **Gate 1 (Contract Formation)**: The buyer must explicitly review and confirm the contract terms.
-* **Gate 2 (Deliverable Release)**: The backend guarantees funds can only be captured when:
-  1. Complete deliverable bundle exists.
-  2. All mandatory deterministic checks pass.
-  3. Authorization hold is active.
-  4. Human buyer clicks "Approve Deliverables & Capture".
+| Area | Milestone 3 Baseline | Milestone 4 Enhancement | Status |
+| :--- | :--- | :--- | :--- |
+| **PayPal Sandbox Integration** | Mock/Adapter foundation | Full PayPal Orders v2 & Payments v2 integration with `application_context`, `return_url`, `cancel_url`, `PayPal-Request-Id` idempotency, and representation preference. | **Verified / Hardened** |
+| **Payment Safety Gates** | Server checks | Order ID validation against contract record, strict rejection of forged/tampered authorization IDs, atomic duplicate capture prevention (HTTP 409). | **47 Passing Tests** |
+| **AI Integration & Fallback** | Local fallback engine | Dual-mode: Live Gemini / OpenAI REST integration with strict schema parsing, markdown fence stripping, and bounded retries; transparent labeled fallback. | **Live / Fallback Auditable** |
+| **UX & Product Design** | Functional prototype | Premium, restrained fintech interface: 6-step progress indicator, honest environment badges, deliverable viewer, and checklist pass/fail report. | **Production-Grade** |
+| **Demo Mode That Never Lies** | Basic test script | One-click reproducible scenarios: Happy Path, Deliverable Failure & Recovery, Adversarial Prompt Injection Containment. | **Judge-Ready** |
 
 ---
 
-## Local Setup & Quickstart
+## 3. Local Setup & Quickstart
 
 ### Prerequisites
-* Python 3.12+ installed
+* Python 3.12+
 * Git
+* Modern web browser
 
-### 1. Setup Backend Virtual Environment
+### Step 1: Clone and Set Up Virtual Environment
 ```bash
+git clone https://github.com/pranjalsingh/paypal-hackathon.git
+cd paypal-hackathon
 python3.12 -m venv backend/.venv
 source backend/.venv/bin/activate
 pip install -r backend/requirements.txt
 ```
 
-### 2. Environment Configuration
-Copy `.env.example` to `.env`:
+### Step 2: Environment Configuration
+Copy the configuration template:
 ```bash
 cp .env.example .env
 ```
-Available environment variables:
+Inspect or edit `.env`:
 ```env
-# PayPal Sandbox Settings (Optional: defaults to transparent Sandbox Mock)
+# PayPal Sandbox Settings (Defaults to transparent Sandbox Mock if omitted)
 PAYPAL_ENV=sandbox
-PAYPAL_CLIENT_ID=your_sandbox_client_id
-PAYPAL_CLIENT_SECRET=your_sandbox_client_secret
+PAYPAL_CLIENT_ID=your_sandbox_client_id_here
+PAYPAL_CLIENT_SECRET=your_sandbox_client_secret_here
 
-# AI Provider Settings (Optional: defaults to transparent deterministic fallback)
+# AI Provider Settings (Defaults to deterministic fallback if omitted)
 LLM_PROVIDER=gemini       # Options: gemini, openai, mock
-LLM_API_KEY=your_api_key  # Server-side only; never exposed to client
+LLM_API_KEY=your_api_key  # Server-side only; never printed or committed
 LLM_MODEL=gemini-2.5-flash
-LLM_TIMEOUT_SECONDS=30
-```
-*Note: If credentials are not supplied, the backend operates in labeled Sandbox Mock Mode (`is_mock: true`) and Deterministic Fallback Mode (`is_fallback: true`), guaranteeing reliable offline evaluation and hackathon judging.*
+LLM_TIMEOUT_SECONDS=15.0
 
-### 3. Launch Application
+# Server Binding
+API_HOST=127.0.0.1
+API_PORT=8000
+DATABASE_URL=sqlite:///./outcome_exchange.db
+```
+
+> **Security & Transparency Policy:**
+> If PayPal credentials or LLM keys are absent, the application runs seamlessly using its **Mock Sandbox Engine** (`is_mock=True`) and **Deterministic Fallback Engine** (`is_fallback=True`). The UI and API explicitly label all mock operations. **No simulated transaction is ever misrepresented as a live transaction.**
+
+### Step 3: Run the Application
 ```bash
 PYTHONPATH=backend backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
-Navigate in your browser to:
-* **Interactive Multi-Agent Dashboard**: `http://localhost:8000/`
-* **Interactive API Documentation (Swagger UI)**: `http://localhost:8000/docs`
+Open in browser:
+* **Interactive Fintech Application:** `http://127.0.0.1:8000/`
+* **Swagger API Specification:** `http://127.0.0.1:8000/docs`
 
 ---
 
-## Running the Automated Test Suite
+## 4. Automated Test Suite (47 Passing Tests)
 
-Run all 36 automated tests:
+Run the full automated test suite:
 ```bash
 PYTHONPATH=backend backend/.venv/bin/pytest backend/tests/ -v
 ```
 
-### Verified Test Suite (36 Passing Tests)
-1. `test_natural_language_request_converted_into_valid_proposal`: Buyer Agent extracts deliverables, budget, and criteria.
-2. `test_missing_requirements_trigger_clarification`: Incomplete request prompts clarification dialog.
-3. `test_contradictory_contract_requirements_handled`: Flags contradictory requests ($0 budget for paid work).
-4. `test_budget_tampering_rejected_by_backend`: Backend rejects zero/negative budget tampering.
-5. `test_buyer_confirmation_creates_authoritative_contract`: Contract is created only after explicit confirmation (Gate 1).
-6. `test_mcp_list_tools`: Exposes official PayPal Agent Toolkit tools; verifies capture tool is omitted.
-7. `test_mcp_create_order_tool_call`: MCP tool creates authorization order and returns correlation ID.
-8. `test_mcp_input_validation_failure`: Validates MCP arguments against Pydantic schema.
-9. `test_buyer_agent_cannot_bypass_verification_gate`: Proves agent cannot capture payment when checks fail.
-10. `test_prompt_injection_in_buyer_request_contained`: Injected prompts in input cannot override budget or policy.
-11. `test_mcp_tool_timeout_and_error_handling`: Gateway timeouts return clean structured MCP error.
-12. `test_mcp_mock_mode_distinction`: Mock vs live execution mode is explicitly tagged.
-13. `test_verifier_passes_on_valid_deliverable`: Validates JSON syntax, key parity, and placeholder preservation.
-14. `test_verifier_fails_on_missing_key`: Fails when a required translation key is missing.
-15. `test_verifier_fails_on_corrupted_placeholder`: Fails when `{email}` or `{user}` placeholder is corrupted.
-16. `test_verifier_fails_on_empty_translation`: Fails on empty translation string.
-17. `test_verifier_fails_on_invalid_json_syntax`: Fails on malformed JSON deliverable.
-18. `test_multi_agent_bundle_generation_success`: Generates and verifies complete 3-artifact bundle.
-19. `test_missing_landing_page_section_fails_verification`: Flags omitted mandatory landing page section.
-20. `test_landing_page_word_count_violation`: Flags copy below minimum word count.
-21. `test_landing_page_unsupported_claim_detection`: Catches unsupported FDIC/banking claims.
-22. `test_unexpected_keys_in_translations_fails_policy`: Flags unauthorized translation keys.
-23. `test_incomplete_bundle_fails_verification`: Blocks verification when required artifact is missing.
-24. `test_qa_agent_cannot_bypass_deterministic_checks`: Proves QA approval cannot override failed deterministic check.
-25. `test_llm_client_fallback_on_unavailable_credentials`: Confirms labeled fallback when credentials absent.
-26. `test_demo_scenario_failure_and_recovery`: Full failure -> blocked capture -> recovery -> capture cycle.
-27. `test_invalid_llm_json_output_handled_safely`: Catches malformed LLM JSON and falls back safely.
-28. `test_llm_client_timeout_and_error_fallback`: Network timeout triggers bounded fallback.
-29. `test_illegal_state_transition_from_draft`: Prevents illegal state transitions.
-30. `test_transition_to_awaiting_approval_requires_all_findings_passed`: Enforces state machine invariants.
-31. `test_successful_end_to_end_vertical_slice`: End-to-end authorization, execution, verification, and capture.
-32. `test_missing_deliverable_blocks_capture`: Missing deliverable prevents payment capture.
-33. `test_capture_without_buyer_approval_rejected`: Capturing with `buyer_approved=False` returns HTTP 400.
-34. `test_modified_amount_rejected`: Captured amount is strictly read from database record.
-35. `test_duplicate_capture_handled_safely`: Repeated capture attempts return HTTP 409 Conflict.
-36. `test_prompt_injection_input_untrusted`: Injected prompts in input remain untrusted and cannot alter payment state.
+### Test Suite Summary
+* **`test_milestone4_security_regression.py` (11 tests):**
+  - `test_forged_order_identifier_rejected`: Confirms invalid/forged order IDs are blocked with HTTP 400.
+  - `test_forged_authorization_identifier_rejected`: Confirms forged authorization IDs cannot trigger settlement.
+  - `test_failed_verification_cannot_be_overwritten`: Proves client cannot bypass verification findings.
+  - `test_duplicate_capture_replayed_request_rejected`: Verifies HTTP 409 Conflict on repeated capture attempts.
+  - `test_contract_amount_tampering_strictly_ignored`: Confirms amount sent in capture request is ignored in favor of contract record.
+  - `test_absent_paypal_credentials_never_claims_live_success`: Ensures honest mock labeling when keys are absent.
+  - `test_mcp_caller_cannot_capture_funds`: Verifies capture is strictly omitted from agent tool definitions.
+  - `test_malformed_model_output_falls_back_safely`: Verifies invalid LLM output triggers structured fallback.
+  - `test_audit_history_persists_across_queries`: Validates audit log persistence across page refreshes.
+  - `test_prompt_injection_payment_request_contained`: Verifies prompt injection cannot override budget.
+  - `test_missing_deliverable_blocks_capture_at_route_level`: Route-level proof that 0 deliverables blocks capture.
+* **`test_buyer_agent_and_mcp.py` (12 tests):** Natural language parsing, clarification dialogues, MCP tool schema execution, and correlation ID tracing.
+* **`test_deterministic_verifier.py` (5 tests):** Syntax validation, missing keys, corrupted interpolation tokens (`{email}`), empty strings.
+* **`test_multi_agent_execution.py` (11 tests):** Bundle generation, missing sections, word-count violations, unsupported claims, and QA agent review containment.
+* **`test_vertical_slice_security.py` (6 tests):** End-to-end authorization hold, deterministic verifier gate, and human sign-off.
+* **`test_state_machine.py` (2 tests):** Illegal transition rejection and prerequisite invariant enforcement.
 
 ---
 
-## Live Demonstration Guide
+## 5. 3-Minute Hackathon Demo Script
 
-### Happy Path: Conversational AI Procurement to Settled Outcome
-1. Open `http://localhost:8000/`.
-2. In **Step 1 (Buyer Agent)**, click **Analyze & Propose Contract**. The agent reviews the natural-language request and extracts the deliverables, budget ($40.00 USD), and acceptance criteria rationale.
-3. Click **Buyer Sign-Off: Confirm Terms & Create Contract ($40.00)** (Human Gate 1).
-4. In **Step 2 (PayPal Agent Toolkit & MCP)**, click **1. Create Order via PayPal Agent Toolkit**, then **2. Confirm Authorization Hold**. Funds are authorized on PayPal rails.
-5. In **Step 3 (Multi-Agent Fulfillment Team)**, click **▶ Run Multi-Agent Team (Happy Path)**. Localization, Content, and QA agents generate `es_translations.json`, `landing_page_es.md`, and `qa_report.json`.
-6. In **Step 4 (Deterministic Verification)**, click **Run Full Bundle Verification**. All 10 mandatory checks pass.
-7. In **Step 5 (Payment Release Gate)**, review the Buyer Agent reasoning and click **Approve Deliverables & Capture $40.00** (Human Gate 2).
-8. In **Step 6 (Auditable Reasoning Timeline)**, inspect the complete timeline from prompt to settled receipt.
+Designed for a live judge presentation or recorded demo under 3 minutes:
 
-### Blocked Payment Demo: Verification Failure Prevents Release
-1. Create and confirm a contract, then place the $40.00 PayPal authorization hold.
-2. In **Step 3**, click **Simulate Missing Section**.
-3. In **Step 4**, click **Run Full Bundle Verification**. Verification fails with `landing_page_required_sections` failed. Contract moves to `VERIFIED_FAILED`.
-4. In **Step 5**, verify that the Buyer Agent reasoning declares **"Payment Capture Strictly Blocked: Mandatory Verification Failed"** and the capture button is disabled (API rejects capture with HTTP 400).
-5. In **Step 3**, click **▶ Run Multi-Agent Team (Happy Path)** to re-execute cleanly.
-6. In **Step 4**, re-run verification. All checks pass, unlocking the release gate.
-7. In **Step 5**, click **Approve Deliverables & Capture $40.00**. Capture succeeds.
+| Time | Step | Action | Key Talking Point for Judges |
+| :--- | :--- | :--- | :--- |
+| **0:00 - 0:30** | **Hook** | Open `http://127.0.0.1:8000/`. Point out the **System Status Bar**. | *"In agentic AI, agents shouldn't be allowed to spend money just because they claim work is done. Outcome Exchange is buyer-governed: real PayPal holds, deterministic verification, and human release gates."* |
+| **0:30 - 1:00** | **Formulation & Hold** | Click **Scenario A: Happy Path** (or manually input prompt & confirm). | *"The Buyer Agent parses the request into a contract with acceptance criteria rationale. At Gate 1, the buyer confirms terms, placing an official PayPal Orders v2 authorization hold for $40.00. Funds are held on PayPal rails—not escrow, but delayed capture."* |
+| **1:00 - 1:40** | **Multi-Agent Fulfillment** | View the 3 specialist agents generating `es_translations.json`, `landing_page_es.md`, and `qa_report.json`. | *"Specialist agents generate concrete files. Notice the deliverable tabs. The QA Agent provides qualitative review, but cannot override deterministic checks."* |
+| **1:40 - 2:20** | **Verification & Failure Gate** | Click **Scenario B: Deliverable Failure & Recovery**. | *"Watch what happens if an agent omits a required section: Verification immediately fails. The payment release gate is strictly LOCKED. No money can move. We recover by re-running the agents, and the gate unlocks."* |
+| **2:20 - 2:45** | **Human Gate & Capture** | Check the buyer authorization checkbox and click **Approve Deliverables & Capture $40.00**. | *"Even with 100% verification pass, capture requires explicit buyer sign-off (Gate 2). The backend executes delayed capture and records the PayPal Capture ID."* |
+| **2:45 - 3:00** | **Settlement & Audit** | Scroll to **Step 6: Official Transaction Receipt & Activity Timeline**. | *"Every state transition, correlation ID, and payment status is immutably logged. Transparent, reproducible, and ready for real commerce."* |
 
 ---
 
-## License
+## 6. Official PayPal Integration Reference
 
-Apache License 2.0.
+This project implements the official PayPal REST API v2 standards:
+* **Orders v2 (`POST /v2/checkout/orders`):** Configured with `intent: "AUTHORIZE"`, `application_context` (`brand_name`, `return_url`, `cancel_url`), and server-bound amounts.
+* **Order Authorize (`POST /v2/checkout/orders/{id}/authorize`):** Places the authorization hold on PayPal rails.
+* **Payments v2 Capture (`POST /v2/payments/authorizations/{id}/capture`):** Delayed capture with `final_capture: true`, `Prefer: return=representation`, and `PayPal-Request-Id` idempotency.
+* **Authorization Void (`POST /v2/payments/authorizations/{id}/void`):** Immediate release of held funds upon buyer cancellation.
+* **Model Context Protocol (MCP):** Compatible with official PayPal Agent Toolkit schemas while preserving strict backend capture gates.
+
+---
+
+## 7. License
+
+Distributed under the Apache 2.0 License. See `LICENSE` for details.

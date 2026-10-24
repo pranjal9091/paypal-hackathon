@@ -69,6 +69,7 @@ class PaymentRecord(Base):
     status = Column(String(64), nullable=False, default="CREATED")
     # Statuses: CREATED, AUTHORIZED (Hold), CAPTURED, VOIDED, FAILED
     is_mock = Column(Boolean, nullable=False, default=False)
+    approval_url = Column(String(512), nullable=True)
     created_at = Column(DateTime, default=utc_now, nullable=False)
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 

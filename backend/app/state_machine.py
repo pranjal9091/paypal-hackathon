@@ -30,9 +30,9 @@ class ContractStateMachine:
     """
 
     ALLOWED_TRANSITIONS = {
-        ContractState.DRAFT: [ContractState.READY_FOR_EXECUTION, ContractState.HOLD_PENDING, ContractState.CANCELLED],
+        ContractState.DRAFT: [ContractState.READY_FOR_EXECUTION, ContractState.HOLD_PENDING, ContractState.VERIFIED_PASSED, ContractState.VERIFIED_FAILED, ContractState.CANCELLED],
         ContractState.HOLD_PENDING: [ContractState.AUTHORIZED, ContractState.CANCELLED],
-        ContractState.AUTHORIZED: [ContractState.EXECUTING, ContractState.AWAITING_BUYER_APPROVAL, ContractState.VOIDED],
+        ContractState.AUTHORIZED: [ContractState.EXECUTING, ContractState.VERIFIED_PASSED, ContractState.VERIFIED_FAILED, ContractState.AWAITING_BUYER_APPROVAL, ContractState.VOIDED],
         ContractState.READY_FOR_EXECUTION: [ContractState.EXECUTING, ContractState.CANCELLED],
         ContractState.EXECUTING: [ContractState.VERIFIED_PASSED, ContractState.VERIFIED_FAILED, ContractState.CANCELLED],
         ContractState.VERIFIED_PASSED: [ContractState.AWAITING_BUYER_APPROVAL, ContractState.EXECUTING, ContractState.VOIDED],

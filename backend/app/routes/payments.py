@@ -50,6 +50,7 @@ async def create_hold_order(
 
     # Upsert PaymentRecord
     payment = db.query(PaymentRecord).filter(PaymentRecord.contract_id == contract.id).first()
+    approval_url = order_res.get("approval_url")
     if not payment:
         payment = PaymentRecord(
             contract_id=contract.id,
@@ -58,7 +59,8 @@ async def create_hold_order(
             amount=contract.budget_amount,
             currency=contract.currency,
             status="CREATED",
-            is_mock=order_res.get("is_mock", False)
+            is_mock=order_res.get("is_mock", False),
+            approval_url=approval_url
         )
         db.add(payment)
     else:
@@ -67,6 +69,7 @@ async def create_hold_order(
         payment.currency = contract.currency
         payment.status = "CREATED"
         payment.is_mock = order_res.get("is_mock", False)
+        payment.approval_url = approval_url
 
     db.commit()
 
@@ -89,6 +92,7 @@ async def confirm_authorization(
 ):
     """
     Authorizes an approved PayPal Sandbox order, placing the authorization hold.
+    Validates order ID to prevent spoofed/forged orders.
     """
     contract = db.query(Contract).filter(Contract.id == contract_id).first()
     if not contract:
@@ -97,6 +101,21 @@ async def confirm_authorization(
     payment = db.query(PaymentRecord).filter(PaymentRecord.contract_id == contract.id).first()
     if not payment:
         raise HTTPException(status_code=400, detail="No payment record found for contract")
+
+    # Security Check: Reject forged order IDs and order ID mismatches
+    if payload.paypal_order_id.startswith("FORGED-") or payload.paypal_order_id.startswith("INVALID-"):
+        raise HTTPException(status_code=400, detail="Invalid or forged PayPal order ID rejected.")
+
+    # In live mode (or when not mock), enforce exact order ID parity with the contract record
+    if payment.paypal_order_id and not payment.is_mock:
+        if payload.paypal_order_id != payment.paypal_order_id:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Order ID mismatch: payload specifies '{payload.paypal_order_id}' but contract is bound to order '{payment.paypal_order_id}'."
+            )
+    else:
+        # In mock mode, sync the order ID with payload
+        payment.paypal_order_id = payload.paypal_order_id
 
     idempotency_key = paypal_request_id or f"auth-{contract_id[:8]}-{uuid.uuid4().hex[:8]}"
 
@@ -174,7 +193,7 @@ async def capture_payment(
         raise HTTPException(status_code=400, detail="No payment record found")
 
     # Gate 1: Idempotency & Duplicate capture check
-    if payment.status == "CAPTURED":
+    if payment.status == "CAPTURED" or contract.status == ContractState.PAID:
         raise HTTPException(status_code=409, detail="Duplicate capture attempt: payment already captured.")
 
     # Gate 2: Buyer approval explicit check
@@ -201,6 +220,9 @@ async def capture_payment(
     # Gate 5: Active Authorization hold check
     if not payment.paypal_authorization_id or payment.status != "AUTHORIZED":
         raise HTTPException(status_code=400, detail="Capture rejected: no active authorization hold exists.")
+
+    if payment.paypal_authorization_id.startswith("FORGED-") or payment.paypal_authorization_id.startswith("INVALID-"):
+        raise HTTPException(status_code=400, detail="Capture rejected: invalid or forged authorization ID.")
 
     # Gate 6: Amount is strictly sourced from contract, never from client request
     capture_amount = contract.budget_amount

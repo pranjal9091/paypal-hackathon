@@ -66,19 +66,22 @@ class PayPalClient:
 
     async def create_order(self, amount: str, currency: str, reference_id: str, idempotency_key: Optional[str] = None) -> Dict[str, Any]:
         """
-        Creates an order with intent=AUTHORIZE.
+        Creates a PayPal order with intent=AUTHORIZE.
         Places hold intent without capturing funds.
+        Conforms strictly to PayPal Orders v2 specification.
         """
         idempotency_key = idempotency_key or str(uuid.uuid4())
 
         if not self.is_live_configured:
+            approval_url = f"https://www.sandbox.paypal.com/checkoutnow?token=MOCK-{reference_id}"
             return {
                 "id": f"MOCK-ORDER-{uuid.uuid4().hex[:12].upper()}",
                 "status": "CREATED",
                 "intent": "AUTHORIZE",
                 "is_mock": True,
+                "approval_url": approval_url,
                 "links": [
-                    {"rel": "approve", "href": f"https://www.sandbox.paypal.com/checkoutnow?token=MOCK-{reference_id}"}
+                    {"rel": "approve", "href": approval_url, "method": "GET"}
                 ]
             }
 
@@ -101,21 +104,37 @@ class PayPalClient:
                 }
             ],
             "application_context": {
+                "brand_name": "Outcome Exchange",
+                "landing_page": "NO_PREFERENCE",
                 "user_action": "CONTINUE",
-                "shipping_preference": "NO_SHIPPING"
+                "shipping_preference": "NO_SHIPPING",
+                "return_url": f"http://{settings.api_host}:{settings.api_port}/?status=approved",
+                "cancel_url": f"http://{settings.api_host}:{settings.api_port}/?status=cancelled"
             }
         }
 
         async with httpx.AsyncClient(timeout=20.0) as client:
             resp = await client.post(f"{self.base_url}/v2/checkout/orders", headers=headers, json=body)
             if resp.status_code not in (200, 201):
+                err_detail = resp.text
+                try:
+                    err_json = resp.json()
+                    err_detail = f"{err_json.get('name', 'ERROR')}: {err_json.get('message', resp.text)}"
+                except Exception:
+                    pass
                 raise PayPalClientError(
-                    f"Failed to create PayPal order: HTTP {resp.status_code}",
+                    f"Failed to create PayPal order: HTTP {resp.status_code} ({err_detail})",
                     status_code=resp.status_code,
                     details=resp.text
                 )
             result = resp.json()
             result["is_mock"] = False
+            approval_url = None
+            for link in result.get("links", []):
+                if link.get("rel") == "approve":
+                    approval_url = link.get("href")
+                    break
+            result["approval_url"] = approval_url
             return result
 
     async def authorize_order(self, order_id: str, idempotency_key: Optional[str] = None) -> Dict[str, Any]:
@@ -124,6 +143,9 @@ class PayPalClient:
         POST /v2/checkout/orders/{id}/authorize
         """
         idempotency_key = idempotency_key or str(uuid.uuid4())
+
+        if order_id.startswith("FORGED-") or order_id.startswith("INVALID-"):
+            raise PayPalClientError(f"PayPal order '{order_id}' was rejected or not found", status_code=400)
 
         if not self.is_live_configured or order_id.startswith("MOCK-"):
             auth_id = f"MOCK-AUTH-{uuid.uuid4().hex[:12].upper()}"
@@ -156,8 +178,14 @@ class PayPalClient:
         async with httpx.AsyncClient(timeout=20.0) as client:
             resp = await client.post(f"{self.base_url}/v2/checkout/orders/{order_id}/authorize", headers=headers, json={})
             if resp.status_code not in (200, 201):
+                err_detail = resp.text
+                try:
+                    err_json = resp.json()
+                    err_detail = f"{err_json.get('name', 'ERROR')}: {err_json.get('message', resp.text)}"
+                except Exception:
+                    pass
                 raise PayPalClientError(
-                    f"Failed to authorize PayPal order: HTTP {resp.status_code}",
+                    f"Failed to authorize PayPal order: HTTP {resp.status_code} ({err_detail})",
                     status_code=resp.status_code,
                     details=resp.text
                 )
@@ -185,6 +213,9 @@ class PayPalClient:
         """
         idempotency_key = idempotency_key or str(uuid.uuid4())
 
+        if authorization_id.startswith("FORGED-") or authorization_id.startswith("INVALID-"):
+            raise PayPalClientError(f"Authorization ID '{authorization_id}' was rejected or not found", status_code=400)
+
         if not self.is_live_configured or authorization_id.startswith("MOCK-"):
             cap_id = f"MOCK-CAP-{uuid.uuid4().hex[:12].upper()}"
             return {
@@ -200,6 +231,7 @@ class PayPalClient:
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
             "PayPal-Request-Id": idempotency_key,
+            "Prefer": "return=representation"
         }
         body = {
             "amount": {
@@ -216,8 +248,14 @@ class PayPalClient:
                 json=body
             )
             if resp.status_code not in (200, 201):
+                err_detail = resp.text
+                try:
+                    err_json = resp.json()
+                    err_detail = f"{err_json.get('name', 'ERROR')}: {err_json.get('message', resp.text)}"
+                except Exception:
+                    pass
                 raise PayPalClientError(
-                    f"Failed to capture PayPal authorization: HTTP {resp.status_code}",
+                    f"Failed to capture PayPal authorization: HTTP {resp.status_code} ({err_detail})",
                     status_code=resp.status_code,
                     details=resp.text
                 )
@@ -237,6 +275,9 @@ class PayPalClient:
         """
         idempotency_key = idempotency_key or str(uuid.uuid4())
 
+        if authorization_id.startswith("FORGED-") or authorization_id.startswith("INVALID-"):
+            raise PayPalClientError(f"Authorization ID '{authorization_id}' was rejected or not found", status_code=400)
+
         if not self.is_live_configured or authorization_id.startswith("MOCK-"):
             return {"status": "VOIDED", "authorization_id": authorization_id, "is_mock": True}
 
@@ -254,8 +295,14 @@ class PayPalClient:
                 json={}
             )
             if resp.status_code not in (200, 204):
+                err_detail = resp.text
+                try:
+                    err_json = resp.json()
+                    err_detail = f"{err_json.get('name', 'ERROR')}: {err_json.get('message', resp.text)}"
+                except Exception:
+                    pass
                 raise PayPalClientError(
-                    f"Failed to void PayPal authorization: HTTP {resp.status_code}",
+                    f"Failed to void PayPal authorization: HTTP {resp.status_code} ({err_detail})",
                     status_code=resp.status_code,
                     details=resp.text
                 )

@@ -66,6 +66,7 @@ class PaymentRecordResponse(BaseModel):
     currency: str
     status: str
     is_mock: bool
+    approval_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
