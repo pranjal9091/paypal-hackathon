@@ -217,3 +217,23 @@ def test_missing_deliverable_blocks_capture_at_route_level(client):
     cap_res = client.post(f"/api/contracts/{cid}/capture", json={"buyer_approved": True})
     assert cap_res.status_code == 400
     assert "Capture rejected" in cap_res.json()["detail"] or "Capture blocked" in cap_res.json()["detail"]
+
+# 12. Concurrent or sequential double-capture serialization
+def test_concurrent_or_sequential_double_capture_serialization(client):
+    contract = create_test_contract(client)
+    cid = contract["id"]
+
+    client.post(f"/api/contracts/{cid}/create-hold-order")
+    client.post(f"/api/contracts/{cid}/confirm-authorization", json={"paypal_order_id": "MOCK-ORDER-TEST"})
+    client.post(f"/api/contracts/{cid}/execute")
+    client.post(f"/api/contracts/{cid}/verify")
+
+    # First capture succeeds
+    cap1 = client.post(f"/api/contracts/{cid}/capture", json={"buyer_approved": True})
+    assert cap1.status_code == 200
+    assert cap1.json()["status"] == "CAPTURED"
+
+    # Immediate second capture receives 409 Conflict
+    cap2 = client.post(f"/api/contracts/{cid}/capture", json={"buyer_approved": True})
+    assert cap2.status_code == 409
+    assert "already captured" in cap2.json()["detail"].lower() or "duplicate" in cap2.json()["detail"].lower()

@@ -1,7 +1,10 @@
 import uuid
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 from app.database import get_db
+
+_capture_lock = asyncio.Lock()
 from app.models import Contract, PaymentRecord, VerificationFinding, AuditEvent, Deliverable
 from app.schemas import (
     PaymentRecordResponse,
@@ -184,80 +187,81 @@ async def capture_payment(
     5. Amount strictly enforced from database contract record
     6. Duplicate capture prevention
     """
-    contract = db.query(Contract).filter(Contract.id == contract_id).first()
-    if not contract:
-        raise HTTPException(status_code=404, detail="Contract not found")
+    async with _capture_lock:
+        contract = db.query(Contract).filter(Contract.id == contract_id).first()
+        if not contract:
+            raise HTTPException(status_code=404, detail="Contract not found")
 
-    payment = db.query(PaymentRecord).filter(PaymentRecord.contract_id == contract.id).first()
-    if not payment:
-        raise HTTPException(status_code=400, detail="No payment record found")
+        payment = db.query(PaymentRecord).filter(PaymentRecord.contract_id == contract.id).first()
+        if not payment:
+            raise HTTPException(status_code=400, detail="No payment record found")
 
-    # Gate 1: Idempotency & Duplicate capture check
-    if payment.status == "CAPTURED" or contract.status == ContractState.PAID:
-        raise HTTPException(status_code=409, detail="Duplicate capture attempt: payment already captured.")
+        # Gate 1: Idempotency & Duplicate capture check
+        if payment.status == "CAPTURED" or contract.status == ContractState.PAID:
+            raise HTTPException(status_code=409, detail="Duplicate capture attempt: payment already captured.")
 
-    # Gate 2: Buyer approval explicit check
-    if not payload.buyer_approved:
-        raise HTTPException(status_code=400, detail="Capture rejected: explicit buyer approval required.")
+        # Gate 2: Buyer approval explicit check
+        if not payload.buyer_approved:
+            raise HTTPException(status_code=400, detail="Capture rejected: explicit buyer approval required.")
 
-    # Gate 3: State machine validity check
-    if contract.status != ContractState.AWAITING_BUYER_APPROVAL:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Capture rejected: contract is in state '{contract.status}', must be in '{ContractState.AWAITING_BUYER_APPROVAL}'."
+        # Gate 3: State machine validity check
+        if contract.status != ContractState.AWAITING_BUYER_APPROVAL:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Capture rejected: contract is in state '{contract.status}', must be in '{ContractState.AWAITING_BUYER_APPROVAL}'."
+            )
+
+        # Gate 4: Verification completeness check (mandatory deterministic checks)
+        findings = db.query(VerificationFinding).filter(VerificationFinding.contract_id == contract.id).all()
+        mandatory_findings = [f for f in findings if f.is_mandatory]
+        if not mandatory_findings or not all(f.passed for f in mandatory_findings):
+            failed = [f.criterion_name for f in mandatory_findings if not f.passed]
+            raise HTTPException(
+                status_code=400,
+                detail=f"Capture blocked: deliverable verification has failed checks: {failed}"
+            )
+
+        # Gate 5: Active Authorization hold check
+        if not payment.paypal_authorization_id or payment.status != "AUTHORIZED":
+            raise HTTPException(status_code=400, detail="Capture rejected: no active authorization hold exists.")
+
+        if payment.paypal_authorization_id.startswith("FORGED-") or payment.paypal_authorization_id.startswith("INVALID-"):
+            raise HTTPException(status_code=400, detail="Capture rejected: invalid or forged authorization ID.")
+
+        # Gate 6: Amount is strictly sourced from contract, never from client request
+        capture_amount = contract.budget_amount
+        capture_currency = contract.currency
+        idempotency_key = paypal_request_id or f"cap-{contract_id[:8]}-{uuid.uuid4().hex[:8]}"
+
+        try:
+            cap_res = await paypal_client.capture_authorization(
+                authorization_id=payment.paypal_authorization_id,
+                amount=capture_amount,
+                currency=capture_currency,
+                idempotency_key=idempotency_key
+            )
+        except PayPalClientError as e:
+            raise HTTPException(status_code=e.status_code, detail=f"PayPal Capture Error: {e.message}")
+
+        # Update payment record
+        payment.paypal_capture_id = cap_res["capture_id"]
+        payment.status = "CAPTURED"
+        payment.is_mock = cap_res.get("is_mock", False)
+        db.commit()
+
+        # Advance state machine to PAID
+        ContractStateMachine.transition(
+            db, contract, ContractState.PAID,
+            actor="buyer",
+            context={
+                "capture_id": payment.paypal_capture_id,
+                "amount": f"{capture_amount} {capture_currency}",
+                "is_mock": payment.is_mock
+            }
         )
 
-    # Gate 4: Verification completeness check (mandatory deterministic checks)
-    findings = db.query(VerificationFinding).filter(VerificationFinding.contract_id == contract.id).all()
-    mandatory_findings = [f for f in findings if f.is_mandatory]
-    if not mandatory_findings or not all(f.passed for f in mandatory_findings):
-        failed = [f.criterion_name for f in mandatory_findings if not f.passed]
-        raise HTTPException(
-            status_code=400,
-            detail=f"Capture blocked: deliverable verification has failed checks: {failed}"
-        )
-
-    # Gate 5: Active Authorization hold check
-    if not payment.paypal_authorization_id or payment.status != "AUTHORIZED":
-        raise HTTPException(status_code=400, detail="Capture rejected: no active authorization hold exists.")
-
-    if payment.paypal_authorization_id.startswith("FORGED-") or payment.paypal_authorization_id.startswith("INVALID-"):
-        raise HTTPException(status_code=400, detail="Capture rejected: invalid or forged authorization ID.")
-
-    # Gate 6: Amount is strictly sourced from contract, never from client request
-    capture_amount = contract.budget_amount
-    capture_currency = contract.currency
-    idempotency_key = paypal_request_id or f"cap-{contract_id[:8]}-{uuid.uuid4().hex[:8]}"
-
-    try:
-        cap_res = await paypal_client.capture_authorization(
-            authorization_id=payment.paypal_authorization_id,
-            amount=capture_amount,
-            currency=capture_currency,
-            idempotency_key=idempotency_key
-        )
-    except PayPalClientError as e:
-        raise HTTPException(status_code=e.status_code, detail=f"PayPal Capture Error: {e.message}")
-
-    # Update payment record
-    payment.paypal_capture_id = cap_res["capture_id"]
-    payment.status = "CAPTURED"
-    payment.is_mock = cap_res.get("is_mock", False)
-    db.commit()
-
-    # Advance state machine to PAID
-    ContractStateMachine.transition(
-        db, contract, ContractState.PAID,
-        actor="buyer",
-        context={
-            "capture_id": payment.paypal_capture_id,
-            "amount": f"{capture_amount} {capture_currency}",
-            "is_mock": payment.is_mock
-        }
-    )
-
-    db.refresh(payment)
-    return payment
+        db.refresh(payment)
+        return payment
 
 @router.post("/{contract_id}/void", response_model=PaymentRecordResponse)
 async def void_payment(

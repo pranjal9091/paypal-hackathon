@@ -1,0 +1,20 @@
+services:
+  outcome-exchange:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: outcome-exchange-app
+    ports:
+      - "8000:8000"
+    environment:
+      - API_HOST=0.0.0.0
+      - PORT=8000
+      - PAYPAL_ENV=sandbox
+      - LLM_PROVIDER=mock
+      - DATABASE_URL=sqlite:///./outcome_exchange.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3

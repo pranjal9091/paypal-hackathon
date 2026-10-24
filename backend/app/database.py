@@ -27,3 +27,19 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def run_migrations():
+    """
+    Lightweight schema migration to ensure backward compatibility on existing databases.
+    """
+    from sqlalchemy import text
+    try:
+        with engine.connect() as conn:
+            if settings.database_url.startswith("sqlite"):
+                res = conn.execute(text("PRAGMA table_info(payment_records)")).fetchall()
+                cols = [c[1] for c in res]
+                if cols and "approval_url" not in cols:
+                    conn.execute(text("ALTER TABLE payment_records ADD COLUMN approval_url VARCHAR(512)"))
+                    conn.commit()
+    except Exception:
+        pass

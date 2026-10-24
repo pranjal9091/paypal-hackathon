@@ -1376,16 +1376,47 @@
       document.getElementById("viewer-container").style.display = "none";
       document.getElementById("findings-container").style.display = "none";
       document.getElementById("card-step-6").style.display = "none";
+
+      const ppLink = document.getElementById("paypal-sandbox-link");
+      if (ppLink) { ppLink.style.display = "none"; ppLink.href = "#"; }
+
+      const findingsList = document.getElementById("findings-list");
+      if (findingsList) findingsList.innerHTML = "";
+      const timelineList = document.getElementById("timeline-container");
+      if (timelineList) timelineList.innerHTML = "";
+
+      document.getElementById("status-step-1").className = "badge badge-neutral";
       document.getElementById("status-step-1").innerText = "Awaiting Request";
+      document.getElementById("status-step-2").className = "badge badge-neutral";
       document.getElementById("status-step-2").innerText = "Locked";
+      document.getElementById("status-step-3").className = "badge badge-neutral";
       document.getElementById("status-step-3").innerText = "Locked";
+      document.getElementById("status-step-4").className = "badge badge-neutral";
       document.getElementById("status-step-4").innerText = "Locked";
+      document.getElementById("status-step-5").className = "badge badge-danger";
       document.getElementById("status-step-5").innerText = "LOCKED";
+
+      document.getElementById("badge-agent-loc").className = "badge badge-neutral";
+      document.getElementById("badge-agent-loc").innerText = "Pending";
+      document.getElementById("badge-agent-content").className = "badge badge-neutral";
+      document.getElementById("badge-agent-content").innerText = "Pending";
+      document.getElementById("badge-agent-qa").className = "badge badge-neutral";
+      document.getElementById("badge-agent-qa").innerText = "Pending";
+
+      const gateAlert = document.getElementById("gate-decision-alert");
+      if (gateAlert) {
+        gateAlert.className = "alert alert-info";
+        gateAlert.innerText = "Awaiting deliverable verification and active PayPal authorization hold.";
+      }
+
       document.getElementById("chk-buyer-approval").checked = false;
       document.getElementById("btn-confirm-contract").disabled = false;
       document.getElementById("btn-create-order").disabled = true;
       document.getElementById("btn-confirm-auth").disabled = true;
       document.getElementById("btn-run-agents").disabled = true;
+      document.getElementById("btn-fail-section").disabled = true;
+      document.getElementById("btn-fail-key").disabled = true;
+      document.getElementById("btn-fail-placeholder").disabled = true;
       document.getElementById("btn-verify").disabled = true;
       document.getElementById("btn-capture-settle").disabled = true;
       document.getElementById("btn-void-release").disabled = true;

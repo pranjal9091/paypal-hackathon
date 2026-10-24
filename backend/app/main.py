@@ -9,8 +9,10 @@ from app.routes import contracts, verification, payments, buyer, mcp
 from app.state_machine import StateMachineError
 from app.paypal_client import PayPalClientError
 
-# Initialize database tables
+# Initialize database tables and run lightweight migrations
 Base.metadata.create_all(bind=engine)
+from app.database import run_migrations
+run_migrations()
 
 app = FastAPI(
     title="Outcome Exchange API",
@@ -71,5 +73,9 @@ def health_check():
         "llm_provider": settings.llm_provider,
         "llm_live_configured": settings.has_real_llm_credentials,
         "database_connected": True,
-        "version": "0.2.0"
+        "version": "0.3.0"
     }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app.main:app", host=settings.api_host, port=settings.api_port, reload=False)

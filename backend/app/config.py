@@ -14,8 +14,8 @@ class Settings(BaseModel):
     llm_api_key: str = os.getenv("LLM_API_KEY", "")
     llm_model: str = os.getenv("LLM_MODEL", "gemini-2.5-flash")
     llm_timeout_seconds: float = float(os.getenv("LLM_TIMEOUT_SECONDS", "15.0"))
-    api_host: str = os.getenv("API_HOST", "127.0.0.1")
-    api_port: int = int(os.getenv("API_PORT", "8000"))
+    api_host: str = os.getenv("API_HOST", "0.0.0.0")
+    api_port: int = int(os.getenv("PORT", os.getenv("API_PORT", "8000")))
 
     @property
     def has_real_paypal_credentials(self) -> bool:
