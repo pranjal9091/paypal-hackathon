@@ -1,16 +1,15 @@
 import json
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Contract, Deliverable, AuditEvent
+from app.models import Contract, Deliverable
 from app.schemas import ContractCreate, ContractResponse, DeliverableResponse
-from app.state_machine import ContractStateMachine, ContractState, StateMachineError
-from app.agents.localization_agent import LocalizationAgent
+from app.state_machine import ContractStateMachine, ContractState
+from app.orchestrator import MultiAgentOrchestrator
 
 router = APIRouter(prefix="/api/contracts", tags=["contracts"])
 
-# Canonical Spanish Launch Kit UI strings
 SAMPLE_LAUNCH_KIT_STRINGS = {
     "app_title": "TidyLedger — Modern Cloud Accounting",
     "login_button": "Log in to your account",
@@ -18,7 +17,7 @@ SAMPLE_LAUNCH_KIT_STRINGS = {
     "welcome_message": "Welcome back, {user}! Your financial dashboard is up to date.",
     "password_reset_notice": "A password recovery link has been sent to {email}.",
     "invoice_summary": "You have {count} pending invoices awaiting approval for {company}.",
-    "cta_start_free": "Start your free 14-day trial",
+    "cta_start_free": "Start your free 14-day trial"
 }
 
 @router.post("", response_model=ContractResponse)
@@ -64,58 +63,59 @@ def get_contract(contract_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Contract not found")
     return contract
 
-@router.post("/{contract_id}/execute", response_model=DeliverableResponse)
+@router.get("/{contract_id}/deliverables", response_model=List[DeliverableResponse])
+def list_deliverables(contract_id: str, db: Session = Depends(get_db)):
+    contract = db.query(Contract).filter(Contract.id == contract_id).first()
+    if not contract:
+        raise HTTPException(status_code=404, detail="Contract not found")
+    return db.query(Deliverable).filter(Deliverable.contract_id == contract.id).all()
+
+@router.post("/{contract_id}/execute")
 async def execute_task(
     contract_id: str,
-    simulate_missing_key: bool = Query(False, description="Simulate an agent failing to produce a required key"),
-    simulate_broken_placeholder: bool = Query(False, description="Simulate an agent corrupting a placeholder"),
-    simulate_prompt_injection: bool = Query(False, description="Simulate prompt injection in agent output"),
+    simulate_missing_key: bool = Query(False, description="Simulate Localization Agent failing a required key"),
+    simulate_broken_placeholder: bool = Query(False, description="Simulate Localization Agent corrupting a placeholder"),
+    simulate_missing_section: bool = Query(False, description="Simulate Content Agent omitting a required section"),
+    simulate_word_count_violation: bool = Query(False, description="Simulate Content Agent word-count violation"),
+    simulate_unsupported_claim: bool = Query(False, description="Simulate Content Agent adding unsupported claim"),
+    simulate_prompt_injection: bool = Query(False, description="Simulate prompt injection in agent input"),
+    simulate_qa_failure: bool = Query(False, description="Simulate QA Agent failing quality review"),
+    force_fallback: bool = Query(False, description="Force offline deterministic fallback"),
     db: Session = Depends(get_db)
 ):
     """
-    Executes the task using the Localization Agent, generating the es_translations.json artifact.
+    Executes the multi-agent workflow:
+    1. Localization Agent -> es_translations.json
+    2. Content Agent      -> landing_page_es.md
+    3. QA Agent           -> qa_report.json
     """
     contract = db.query(Contract).filter(Contract.id == contract_id).first()
     if not contract:
         raise HTTPException(status_code=404, detail="Contract not found")
 
-    # Transition to EXECUTING if currently in DRAFT, READY_FOR_EXECUTION, or AUTHORIZED
-    if contract.status in [ContractState.DRAFT, ContractState.READY_FOR_EXECUTION, ContractState.AUTHORIZED]:
-        ContractStateMachine.transition(db, contract, ContractState.EXECUTING, actor="system", context={"stage": "localization_agent_start"})
-
-    source_strings = json.loads(contract.source_payload)
-
-    # Run agent
-    agent_output = await LocalizationAgent.execute(
-        source_strings=source_strings,
+    res = await MultiAgentOrchestrator.execute_workflow(
+        db=db,
+        contract=contract,
         simulate_missing_key=simulate_missing_key,
         simulate_broken_placeholder=simulate_broken_placeholder,
-        simulate_prompt_injection=simulate_prompt_injection
+        simulate_missing_section=simulate_missing_section,
+        simulate_word_count_violation=simulate_word_count_violation,
+        simulate_unsupported_claim=simulate_unsupported_claim,
+        simulate_prompt_injection=simulate_prompt_injection,
+        simulate_qa_failure=simulate_qa_failure,
+        force_fallback=force_fallback
     )
 
-    # Clean existing deliverables for this contract
-    db.query(Deliverable).filter(Deliverable.contract_id == contract.id).delete()
-
-    deliverable = Deliverable(
-        contract_id=contract.id,
-        filename=agent_output["filename"],
-        content=agent_output["content"],
-        format="json"
-    )
-    db.add(deliverable)
-    db.commit()
-    db.refresh(deliverable)
-
-    ContractStateMachine.record_audit(
-        db,
-        contract.id,
-        "DELIVERABLE_GENERATED",
-        "localization_agent",
-        {
-            "filename": deliverable.filename,
-            "provider": agent_output.get("provider"),
-            "is_fallback": agent_output.get("is_fallback")
-        }
-    )
-    db.commit()
-    return deliverable
+    deliverable_responses = [DeliverableResponse.model_validate(d) for d in res["deliverables"]]
+    # Return first deliverable for backwards compatibility with single deliverable schema, plus summary
+    first_deliv = deliverable_responses[0]
+    return {
+        "id": first_deliv.id,
+        "contract_id": first_deliv.contract_id,
+        "filename": first_deliv.filename,
+        "content": first_deliv.content,
+        "format": first_deliv.format,
+        "created_at": first_deliv.created_at,
+        "deliverables": deliverable_responses,
+        "summary": res["summary"]
+    }

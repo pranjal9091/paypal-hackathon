@@ -39,6 +39,8 @@ class FindingResponse(BaseModel):
     criterion_name: str
     passed: bool
     details: str
+    evaluator: str = "deterministic"
+    is_mandatory: bool = True
     created_at: datetime
 
 class VerificationReportResponse(BaseModel):

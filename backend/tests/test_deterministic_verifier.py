@@ -17,7 +17,7 @@ def test_verifier_passes_on_valid_deliverable():
     passed, findings = DeterministicVerifier.verify(SOURCE_STRINGS, valid_deliverable)
     assert passed is True
     assert all(f.passed for f in findings)
-    assert len(findings) == 4
+    assert len(findings) == 5
 
 def test_verifier_fails_on_missing_key():
     missing_key_deliverable = json.dumps({

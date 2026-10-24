@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Outcome Exchange — Milestone 1 Vertical Slice</title>
+  <title>Outcome Exchange — Milestone 2: Multi-Agent Execution</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -12,6 +12,7 @@
       --bg: #090d16;
       --card-bg: #111827;
       --card-border: #1f2937;
+      --card-border-focus: #374151;
       --text: #f3f4f6;
       --text-muted: #9ca3af;
       --primary: #2563eb;
@@ -24,6 +25,8 @@
       --warning-bg: rgba(217, 119, 6, 0.12);
       --code-bg: #030712;
       --accent: #38bdf8;
+      --purple: #8b5cf6;
+      --purple-bg: rgba(139, 92, 246, 0.12);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -32,11 +35,11 @@
       background: var(--bg);
       color: var(--text);
       line-height: 1.5;
-      padding: 2rem 1rem;
+      padding: 2rem 1rem 4rem;
     }
 
     .container {
-      max-width: 1040px;
+      max-width: 1080px;
       margin: 0 auto;
     }
 
@@ -46,20 +49,37 @@
       padding-bottom: 1.5rem;
     }
 
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .system-status-bar {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
     .badge {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
       padding: 0.25rem 0.65rem;
       border-radius: 9999px;
-      font-size: 0.75rem;
+      font-size: 0.725rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      margin-bottom: 0.5rem;
     }
     .badge-primary { background: rgba(37, 99, 235, 0.2); color: #60a5fa; border: 1px solid rgba(37, 99, 235, 0.4); }
     .badge-success { background: var(--success-bg); color: #34d399; border: 1px solid rgba(5, 150, 105, 0.4); }
     .badge-warning { background: var(--warning-bg); color: #fbbf24; border: 1px solid rgba(217, 119, 6, 0.4); }
     .badge-danger { background: var(--danger-bg); color: #f87171; border: 1px solid rgba(220, 38, 38, 0.4); }
+    .badge-purple { background: var(--purple-bg); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.4); }
+    .badge-neutral { background: rgba(255, 255, 255, 0.05); color: #d1d5db; border: 1px solid rgba(255, 255, 255, 0.15); }
 
     h1 { font-size: 1.85rem; font-weight: 700; margin-bottom: 0.25rem; color: #fff; }
     p.subtitle { color: var(--text-muted); font-size: 0.95rem; }
@@ -76,6 +96,7 @@
       border-radius: 12px;
       padding: 1.5rem;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      position: relative;
     }
 
     .card-header {
@@ -125,13 +146,14 @@
       color: #fff;
     }
     .btn:hover { background: var(--primary-hover); }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.775rem; }
     .btn-success { background: var(--success); }
     .btn-success:hover { background: #047857; }
     .btn-danger { background: var(--danger); }
     .btn-danger:hover { background: #b91c1c; }
-    .btn-outline { background: transparent; border: 1px solid var(--card-border); color: var(--text); }
-    .btn-outline:hover { background: rgba(255, 255, 255, 0.05); }
+    .btn-outline { background: transparent; border: 1px solid var(--card-border-focus); color: var(--text); }
+    .btn-outline:hover { background: rgba(255, 255, 255, 0.06); border-color: #6b7280; }
 
     .btn-group { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
 
@@ -146,15 +168,68 @@
       border-radius: 8px;
       padding: 1rem;
       overflow-x: auto;
-      max-height: 280px;
+      max-height: 320px;
       color: #e5e7eb;
     }
 
     .status-pill {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 600;
-      padding: 0.2rem 0.5rem;
+      padding: 0.25rem 0.6rem;
       border-radius: 6px;
+    }
+
+    .agents-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .agent-card {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .agent-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .agent-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #e5e7eb;
+    }
+    .agent-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .tabs-nav {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 0.5rem;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.4rem 0.8rem;
+      font-size: 0.825rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+    .tab-btn.active {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--accent);
     }
 
     .findings-list {
@@ -172,11 +247,12 @@
       padding: 0.75rem;
       border-radius: 8px;
       font-size: 0.85rem;
-      background: rgba(0, 0, 0, 0.2);
+      background: rgba(0, 0, 0, 0.25);
       border: 1px solid var(--card-border);
     }
     .finding-item.pass { border-left: 4px solid var(--success); }
     .finding-item.fail { border-left: 4px solid var(--danger); }
+    .finding-item.qa-info { border-left: 4px solid var(--purple); }
 
     .alert {
       padding: 0.75rem 1rem;
@@ -188,6 +264,7 @@
     .alert-info { background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.3); color: #7dd3fc; }
     .alert-warning { background: var(--warning-bg); border-color: rgba(217, 119, 6, 0.4); color: #fcd34d; }
     .alert-danger { background: var(--danger-bg); border-color: rgba(220, 38, 38, 0.4); color: #fca5a5; }
+    .alert-success { background: var(--success-bg); border-color: rgba(5, 150, 105, 0.4); color: #6ee7b7; }
 
     .receipt-box {
       border: 1px dashed #374151;
@@ -206,14 +283,38 @@
     .receipt-row:last-child { border-bottom: none; }
     .receipt-label { color: var(--text-muted); }
     .receipt-val { font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+
+    .demo-scenarios-panel {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px dashed var(--card-border-focus);
+    }
+    .demo-scenarios-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <span class="badge badge-primary">Milestone 1 — Functional Vertical Slice</span>
-      <h1>Outcome Exchange</h1>
-      <p class="subtitle">Buyer-Governed AI Fulfillment with PayPal Authorization Hold & Deterministic Verification</p>
+      <div class="header-top">
+        <div>
+          <span class="badge badge-purple">Milestone 2 &bull; Multi-Agent Execution</span>
+          <h1>Outcome Exchange</h1>
+          <p class="subtitle">Buyer-Governed Multi-Agent AI Fulfillment with PayPal Authorization Hold & Deterministic Verification</p>
+        </div>
+        <div class="system-status-bar">
+          <span class="badge badge-neutral" id="hdr-llm-badge">LLM: Checking...</span>
+          <span class="badge badge-neutral" id="hdr-paypal-badge">PayPal: Checking...</span>
+        </div>
+      </div>
     </header>
 
     <div class="grid">
@@ -222,12 +323,12 @@
         <div class="card-header">
           <div class="card-title">
             <span class="step-number">1</span>
-            <span>Contract Definition: Spanish Launch Kit</span>
+            <span>Contract Definition: Spanish Market Launch Kit</span>
           </div>
           <span class="status-pill badge-primary" id="contract-status-badge">NOT CREATED</span>
         </div>
         <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">
-          Startup: <strong>TidyLedger</strong> &bull; Task: Spanish UI String Localization &bull; Budget: <strong>$40.00 USD</strong>
+          Startup: <strong>TidyLedger</strong> &bull; Deliverables: <strong>UI Translations + Spanish Landing Page Copy</strong> &bull; Budget: <strong>$40.00 USD</strong>
         </p>
         <pre id="source-strings-preview">{
   "app_title": "TidyLedger — Modern Cloud Accounting",
@@ -253,7 +354,7 @@
           <span class="status-pill badge-warning" id="payment-status-badge">PENDING</span>
         </div>
         <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">
-          Places a server-authorized hold via PayPal REST v2 (<code>intent: "AUTHORIZE"</code>). Funds are held on PayPal rails, <strong>not captured</strong>.
+          Places a server-authorized hold via PayPal REST v2 (<code>intent: "AUTHORIZE"</code>). Funds are held on PayPal rails, <strong>never captured prematurely</strong>.
         </p>
         <div id="paypal-actions" class="btn-group">
           <button class="btn btn-outline" id="btn-create-order" onclick="createHoldOrder()" disabled>1. Create Hold Order</button>
@@ -261,34 +362,87 @@
         </div>
         <div id="payment-details-box" style="margin-top: 1rem; display: none;">
           <div class="receipt-box">
-            <div class="receipt-row"><span class="receipt-label">Order ID:</span><span class="receipt-val" id="disp-order-id">-</span></div>
-            <div class="receipt-row"><span class="receipt-label">Authorization ID:</span><span class="receipt-val" id="disp-auth-id">-</span></div>
-            <div class="receipt-row"><span class="receipt-label">Amount Held:</span><span class="receipt-val" id="disp-amount">$40.00 USD</span></div>
-            <div class="receipt-row"><span class="receipt-label">Provider Mode:</span><span class="receipt-val" id="disp-provider">-</span></div>
+            <div class="receipt-row"><span class="receipt-label">PayPal Order ID:</span><span class="receipt-val" id="disp-order-id">-</span></div>
+            <div class="receipt-row"><span class="receipt-label">Authorization Hold ID:</span><span class="receipt-val" id="disp-auth-id">-</span></div>
+            <div class="receipt-row"><span class="receipt-label">Contract Amount Held:</span><span class="receipt-val" id="disp-amount">$40.00 USD</span></div>
+            <div class="receipt-row"><span class="receipt-label">Payment Rail Mode:</span><span class="receipt-val" id="disp-provider">-</span></div>
           </div>
         </div>
       </div>
 
-      <!-- Step 3: AI Worker Agent Execution -->
-      <div class="card" id="card-agent">
+      <!-- Step 3: Multi-Agent Execution -->
+      <div class="card" id="card-agents">
         <div class="card-header">
           <div class="card-title">
             <span class="step-number">3</span>
-            <span>AI Localization Agent</span>
+            <span>Multi-Agent Fulfillment Team</span>
           </div>
-          <span class="status-pill badge-primary" id="agent-status-badge">READY</span>
+          <span class="status-pill badge-primary" id="agents-status-badge">READY</span>
         </div>
         <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">
-          Specialist agent generates <code>es_translations.json</code>. Choose normal execution or simulate failure modes for live demonstration.
+          Three specialized agents collaborate to fulfill the contract:
         </p>
-        <div class="btn-group">
-          <button class="btn" id="btn-exec-normal" onclick="runAgent('normal')" disabled>Generate Translations (Normal)</button>
-          <button class="btn btn-outline" id="btn-exec-missing" onclick="runAgent('missing_key')" disabled>Simulate Missing Key (Failure Test)</button>
-          <button class="btn btn-outline" id="btn-exec-injection" onclick="runAgent('injection')" disabled>Simulate Injected Prompt</button>
+
+        <div class="agents-grid">
+          <div class="agent-card">
+            <div class="agent-header">
+              <span class="agent-title">1. Localization Agent</span>
+              <span class="badge badge-neutral" id="agent-loc-badge">Pending</span>
+            </div>
+            <p class="agent-desc">Translates UI keys into Spanish preserving all <code>{variable}</code> placeholders.</p>
+            <span style="font-size: 0.75rem; color: var(--accent);">Produces: es_translations.json</span>
+          </div>
+
+          <div class="agent-card">
+            <div class="agent-header">
+              <span class="agent-title">2. Content Agent</span>
+              <span class="badge badge-neutral" id="agent-content-badge">Pending</span>
+            </div>
+            <p class="agent-desc">Generates Spanish landing copy across 4 required sections (120-500 words).</p>
+            <span style="font-size: 0.75rem; color: var(--accent);">Produces: landing_page_es.md</span>
+          </div>
+
+          <div class="agent-card">
+            <div class="agent-header">
+              <span class="agent-title">3. QA Agent</span>
+              <span class="badge badge-neutral" id="agent-qa-badge">Pending</span>
+            </div>
+            <p class="agent-desc">Performs qualitative review. <em>Note: QA findings are informative and cannot bypass deterministic verification.</em></p>
+            <span style="font-size: 0.75rem; color: var(--accent);">Produces: qa_report.json</span>
+          </div>
         </div>
-        <div id="artifact-container" style="margin-top: 1rem; display: none;">
-          <p style="font-size: 0.85rem; color: var(--accent); margin-bottom: 0.25rem;">Generated Artifact: <strong>es_translations.json</strong></p>
-          <pre id="artifact-content"></pre>
+
+        <!-- Demo Scenarios Bar -->
+        <div class="demo-scenarios-panel">
+          <div class="demo-scenarios-title">Interactive Demo &amp; Regression Scenarios</div>
+          <div class="btn-group" style="margin-top: 0.25rem;">
+            <button class="btn btn-sm btn-primary" id="btn-exec-normal" onclick="runAgents('normal')" disabled>▶ Run Multi-Agent Team (Happy Path)</button>
+            <button class="btn btn-sm btn-outline" id="btn-fail-section" onclick="runAgents('missing_section')" disabled>Simulate Missing Section (Landing Page)</button>
+            <button class="btn btn-sm btn-outline" id="btn-fail-key" onclick="runAgents('missing_key')" disabled>Simulate Missing Key (Translations)</button>
+            <button class="btn btn-sm btn-outline" id="btn-fail-placeholder" onclick="runAgents('broken_placeholder')" disabled>Simulate Corrupted Placeholder</button>
+            <button class="btn btn-sm btn-outline" id="btn-fail-claim" onclick="runAgents('unsupported_claim')" disabled>Simulate Unsupported Claim</button>
+            <button class="btn btn-sm btn-outline" id="btn-fail-injection" onclick="runAgents('injection')" disabled>Simulate Prompt Injection</button>
+          </div>
+        </div>
+
+        <div id="agent-execution-meta" style="margin-top: 1rem; display: none;">
+          <div class="receipt-box" style="margin-top: 0;">
+            <div class="receipt-row"><span class="receipt-label">Execution Mode:</span><span class="receipt-val" id="disp-agent-mode">-</span></div>
+            <div class="receipt-row"><span class="receipt-label">AI Provider:</span><span class="receipt-val" id="disp-agent-provider">-</span></div>
+            <div class="receipt-row"><span class="receipt-label">Artifacts Produced:</span><span class="receipt-val" id="disp-agent-artifacts">-</span></div>
+          </div>
+        </div>
+
+        <!-- Deliverables Viewer -->
+        <div id="artifacts-viewer" style="margin-top: 1rem; display: none;">
+          <div class="tabs-nav">
+            <button class="tab-btn active" id="tab-btn-loc" onclick="switchTab('loc')">es_translations.json</button>
+            <button class="tab-btn" id="tab-btn-content" onclick="switchTab('content')">landing_page_es.md</button>
+            <button class="tab-btn" id="tab-btn-qa" onclick="switchTab('qa')">qa_report.json (QA Review)</button>
+          </div>
+          <pre id="tab-content-loc"></pre>
+          <pre id="tab-content-content" style="display: none;"></pre>
+          <pre id="tab-content-qa" style="display: none;"></pre>
         </div>
       </div>
 
@@ -297,17 +451,22 @@
         <div class="card-header">
           <div class="card-title">
             <span class="step-number">4</span>
-            <span>Deterministic Verification Engine</span>
+            <span>Independent Multi-Artifact Verification Engine</span>
           </div>
           <span class="status-pill badge-primary" id="verify-status-badge">NOT RUN</span>
         </div>
         <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">
-          Executes non-subjective checks: JSON syntax, required key completeness, non-empty translations, and variable placeholder preservation (<code>{email}</code>).
+          Executes non-subjective, deterministic rules against the entire deliverable bundle. Payment release is strictly blocked if any mandatory check fails.
         </p>
         <div class="btn-group">
-          <button class="btn" id="btn-verify" onclick="runVerification()" disabled>Run Deterministic Verification</button>
+          <button class="btn" id="btn-verify" onclick="runVerification()" disabled>Run Full Bundle Verification</button>
         </div>
         <div id="verification-findings-container" style="display: none;">
+          <div style="display: flex; gap: 0.5rem; margin-top: 1rem; margin-bottom: 0.5rem;">
+            <span class="badge badge-success" id="badge-pass-count">0 PASSED</span>
+            <span class="badge badge-danger" id="badge-fail-count">0 FAILED</span>
+            <span class="badge badge-purple" id="badge-qa-count">0 QA FINDINGS</span>
+          </div>
           <ul class="findings-list" id="findings-list"></ul>
         </div>
       </div>
@@ -317,17 +476,17 @@
         <div class="card-header">
           <div class="card-title">
             <span class="step-number">5</span>
-            <span>Human Approval Gate & Final Capture</span>
+            <span>Buyer Sign-Off &amp; Server-Side Payment Gate</span>
           </div>
           <span class="status-pill badge-primary" id="gate-status-badge">LOCKED</span>
         </div>
         <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">
-          Backend strictly enforces: Capture is <strong>BLOCKED</strong> until verification passes AND human buyer gives explicit release sign-off.
+          Backend strictly enforces: Capture is <strong>LOCKED</strong> until all mandatory checks pass AND the buyer gives explicit release sign-off.
         </p>
-        <div id="gate-message" class="alert alert-info">Awaiting verification and authorization hold before release unlock.</div>
+        <div id="gate-message" class="alert alert-info">Awaiting multi-artifact verification and active authorization hold.</div>
         <div class="btn-group">
-          <button class="btn btn-success" id="btn-capture" onclick="capturePayment()" disabled>Approve Deliverable & Capture $40.00</button>
-          <button class="btn btn-danger" id="btn-void" onclick="voidHold()" disabled>Reject & Void Authorization Hold</button>
+          <button class="btn btn-success" id="btn-capture" onclick="capturePayment()" disabled>Approve Bundle &amp; Capture $40.00</button>
+          <button class="btn btn-danger" id="btn-void" onclick="voidHold()" disabled>Reject Deliverables &amp; Void Authorization Hold</button>
         </div>
       </div>
 
@@ -336,13 +495,13 @@
         <div class="card-header">
           <div class="card-title">
             <span class="step-number">✓</span>
-            <span>Transaction Receipt & Immutable Audit Trail</span>
+            <span>Transaction Receipt &amp; Immutable Audit Trail</span>
           </div>
           <span class="status-pill badge-success">COMPLETED</span>
         </div>
         <div class="receipt-box" id="final-receipt-details"></div>
         <div style="margin-top: 1rem;">
-          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">Audit Trail Event Log:</p>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">Authoritative Audit Trail Log:</p>
           <pre id="audit-events-log"></pre>
         </div>
       </div>
@@ -353,6 +512,36 @@
     let currentContractId = null;
     let currentOrderId = null;
     let currentAuthId = null;
+    let deliverablesMap = {};
+
+    // Initial system status check
+    async function loadSystemHealth() {
+      try {
+        const res = await fetch("/api/health");
+        const data = await res.json();
+        
+        const llmBadge = document.getElementById("hdr-llm-badge");
+        if (data.llm_live_configured) {
+          llmBadge.className = "badge badge-success";
+          llmBadge.innerText = `LIVE AI: ${data.llm_provider.toUpperCase()}`;
+        } else {
+          llmBadge.className = "badge badge-warning";
+          llmBadge.innerText = `OFFLINE FALLBACK: Local Rule Engine`;
+        }
+
+        const ppBadge = document.getElementById("hdr-paypal-badge");
+        if (data.paypal_live_configured) {
+          ppBadge.className = "badge badge-success";
+          ppBadge.innerText = `PAYPAL SANDBOX: LIVE`;
+        } else {
+          ppBadge.className = "badge badge-primary";
+          ppBadge.innerText = `PAYPAL SANDBOX: MOCK`;
+        }
+      } catch (e) {
+        console.error("Health check error:", e);
+      }
+    }
+    loadSystemHealth();
 
     async function createContract() {
       try {
@@ -361,7 +550,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: "Spanish Launch Kit Contract",
-            description: "Full Spanish UI string localization with verified placeholders for TidyLedger",
+            description: "Spanish UI string localization + Spanish landing page copy for TidyLedger",
             budget_amount: "40.00",
             currency: "USD",
             source_strings: JSON.parse(document.getElementById("source-strings-preview").innerText)
@@ -373,12 +562,20 @@
         document.getElementById("contract-id-display").innerText = "ID: " + data.id.substring(0, 13) + "...";
         document.getElementById("btn-create-contract").disabled = true;
         document.getElementById("btn-create-order").disabled = false;
-        document.getElementById("btn-exec-normal").disabled = false;
-        document.getElementById("btn-exec-missing").disabled = false;
-        document.getElementById("btn-exec-injection").disabled = false;
+        
+        enableAgentButtons(true);
       } catch (err) {
         alert("Error creating contract: " + err);
       }
+    }
+
+    function enableAgentButtons(enabled) {
+      document.getElementById("btn-exec-normal").disabled = !enabled;
+      document.getElementById("btn-fail-section").disabled = !enabled;
+      document.getElementById("btn-fail-key").disabled = !enabled;
+      document.getElementById("btn-fail-placeholder").disabled = !enabled;
+      document.getElementById("btn-fail-claim").disabled = !enabled;
+      document.getElementById("btn-fail-injection").disabled = !enabled;
     }
 
     async function createHoldOrder() {
@@ -416,21 +613,67 @@
       }
     }
 
-    async function runAgent(mode) {
+    async function runAgents(mode) {
       let query = "";
       if (mode === "missing_key") query = "?simulate_missing_key=true";
-      if (mode === "injection") query = "?simulate_prompt_injection=true";
+      else if (mode === "broken_placeholder") query = "?simulate_broken_placeholder=true";
+      else if (mode === "missing_section") query = "?simulate_missing_section=true";
+      else if (mode === "unsupported_claim") query = "?simulate_unsupported_claim=true";
+      else if (mode === "injection") query = "?simulate_prompt_injection=true";
+
+      document.getElementById("agents-status-badge").innerText = "EXECUTING...";
 
       try {
         const res = await fetch(`/api/contracts/${currentContractId}/execute${query}`, { method: "POST" });
         const data = await res.json();
-        document.getElementById("artifact-content").innerText = data.content;
-        document.getElementById("artifact-container").style.display = "block";
-        document.getElementById("agent-status-badge").innerText = "DELIVERABLE READY";
+        
+        deliverablesMap = {};
+        if (data.deliverables) {
+          data.deliverables.forEach(d => {
+            deliverablesMap[d.filename] = d.content;
+          });
+        }
+
+        // Render Deliverable Tabs Content
+        document.getElementById("tab-content-loc").innerText = deliverablesMap["es_translations.json"] || "";
+        document.getElementById("tab-content-content").innerText = deliverablesMap["landing_page_es.md"] || "";
+        document.getElementById("tab-content-qa").innerText = deliverablesMap["qa_report.json"] || "";
+        
+        document.getElementById("artifacts-viewer").style.display = "block";
+        document.getElementById("agent-execution-meta").style.display = "block";
+
+        const summary = data.summary || {};
+        document.getElementById("disp-agent-mode").innerText = summary.overall_mode ? summary.overall_mode.toUpperCase() : "FALLBACK";
+        document.getElementById("disp-agent-provider").innerText = summary.overall_provider || "deterministic-fallback";
+        document.getElementById("disp-agent-artifacts").innerText = `${data.deliverables.length} files generated`;
+
+        // Update agent badges
+        document.getElementById("agent-loc-badge").className = "badge badge-success";
+        document.getElementById("agent-loc-badge").innerText = "COMPLETED";
+
+        document.getElementById("agent-content-badge").className = "badge badge-success";
+        document.getElementById("agent-content-badge").innerText = "COMPLETED";
+
+        document.getElementById("agent-qa-badge").className = "badge badge-purple";
+        document.getElementById("agent-qa-badge").innerText = "REVIEWED";
+
+        document.getElementById("agents-status-badge").className = "status-pill badge-success";
+        document.getElementById("agents-status-badge").innerText = "BUNDLE READY";
+
         document.getElementById("btn-verify").disabled = false;
       } catch (err) {
-        alert("Error executing agent: " + err);
+        alert("Error executing agents: " + err);
       }
+    }
+
+    function switchTab(tab) {
+      document.getElementById("tab-btn-loc").className = "tab-btn" + (tab === 'loc' ? ' active' : '');
+      document.getElementById("tab-btn-content").className = "tab-btn" + (tab === 'content' ? ' active' : '');
+      document.getElementById("tab-btn-qa").className = "tab-btn" + (tab === 'qa' ? ' active' : '');
+
+      document.getElementById("tab-content-loc").style.display = tab === 'loc' ? 'block' : 'none';
+      document.getElementById("tab-content-content").style.display = tab === 'content' ? 'block' : 'none';
+      document.getElementById("tab-content-qa").style.display = tab === 'qa' ? 'block' : 'none';
     }
 
     async function runVerification() {
@@ -440,24 +683,46 @@
         const list = document.getElementById("findings-list");
         list.innerHTML = "";
 
+        let passCount = 0;
+        let failCount = 0;
+        let qaCount = 0;
+
         data.findings.forEach(f => {
+          const isQA = f.evaluator === "qa_agent";
+          if (isQA) qaCount++;
+          else if (f.passed) passCount++;
+          else failCount++;
+
           const li = document.createElement("li");
-          li.className = `finding-item ${f.passed ? "pass" : "fail"}`;
+          let itemClass = f.passed ? "pass" : "fail";
+          if (isQA) itemClass = "qa-info";
+
+          const badgeText = isQA ? "QA REVIEW" : (f.passed ? "✓ PASS" : "✗ FAIL");
+          const mandatoryLabel = f.is_mandatory ? "<span style='color: #f87171; font-size: 0.75rem; margin-left: 0.5rem;'>[MANDATORY GATE]</span>" : "<span style='color: #c084fc; font-size: 0.75rem; margin-left: 0.5rem;'>[INFORMATIVE]</span>";
+
+          li.className = `finding-item ${itemClass}`;
           li.innerHTML = `
-            <div style="font-weight: 600; min-width: 160px;">${f.passed ? "✓ PASS" : "✗ FAIL"}: ${f.criterion_name}</div>
-            <div style="color: var(--text-muted);">${f.details}</div>
+            <div style="min-width: 220px;">
+              <span style="font-weight: 600;">${badgeText}:</span> <code>${f.criterion_name}</code>
+              ${mandatoryLabel}
+            </div>
+            <div style="color: var(--text-muted); flex: 1;">${f.details}</div>
           `;
           list.appendChild(li);
         });
+
+        document.getElementById("badge-pass-count").innerText = `${passCount} MANDATORY PASSED`;
+        document.getElementById("badge-fail-count").innerText = `${failCount} MANDATORY FAILED`;
+        document.getElementById("badge-qa-count").innerText = `${qaCount} QA FINDINGS`;
 
         document.getElementById("verification-findings-container").style.display = "block";
         const vBadge = document.getElementById("verify-status-badge");
         if (data.passed) {
           vBadge.className = "status-pill badge-success";
-          vBadge.innerText = "ALL CRITERIA PASSED";
+          vBadge.innerText = "ALL MANDATORY CRITERIA PASSED";
         } else {
           vBadge.className = "status-pill badge-danger";
-          vBadge.innerText = "VERIFICATION FAILED";
+          vBadge.innerText = "MANDATORY VERIFICATION FAILED";
         }
         checkGateStatus(data.passed);
       } catch (err) {
@@ -465,7 +730,7 @@
       }
     }
 
-    async function checkGateStatus(lastVerificationPassed) {
+    async function checkGateStatus() {
       if (!currentContractId) return;
       const cRes = await fetch(`/api/contracts/${currentContractId}`);
       const contract = await cRes.json();
@@ -478,15 +743,15 @@
       if (contract.status === "AWAITING_BUYER_APPROVAL") {
         gateBadge.className = "status-pill badge-success";
         gateBadge.innerText = "UNLOCKED FOR APPROVAL";
-        gateMsg.className = "alert alert-info";
-        gateMsg.innerHTML = "<strong>Verification Passed & Authorization Hold Active.</strong> You may now review deliverables and authorize the release of funds.";
+        gateMsg.className = "alert alert-success";
+        gateMsg.innerHTML = "<strong>Verification Passed &amp; Authorization Hold Active.</strong> All mandatory deterministic criteria have passed. You may now inspect deliverables and release funds.";
         btnCapture.disabled = false;
         btnVoid.disabled = false;
       } else if (contract.status === "VERIFIED_FAILED") {
         gateBadge.className = "status-pill badge-danger";
-        gateBadge.innerText = "CAPTURE BLOCKED";
+        gateBadge.innerText = "CAPTURE STRICTLY BLOCKED";
         gateMsg.className = "alert alert-danger";
-        gateMsg.innerHTML = "<strong>Capture Blocked:</strong> Verification criteria failed. Money cannot be released. You may void the hold.";
+        gateMsg.innerHTML = "<strong>Payment Release Blocked:</strong> Mandatory verification failed. Server payment gate will reject any capture attempts. You can re-execute cleanly or void the authorization hold.";
         btnCapture.disabled = true;
         btnVoid.disabled = !currentAuthId;
       }

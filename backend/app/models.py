@@ -49,6 +49,8 @@ class VerificationFinding(Base):
     criterion_name = Column(String(128), nullable=False)
     passed = Column(Boolean, nullable=False)
     details = Column(Text, nullable=False)
+    evaluator = Column(String(32), nullable=False, default="deterministic") # "deterministic" or "qa_agent"
+    is_mandatory = Column(Boolean, nullable=False, default=True) # deterministic checks are mandatory for payment release
     created_at = Column(DateTime, default=utc_now, nullable=False)
 
     contract = relationship("Contract", back_populates="findings")

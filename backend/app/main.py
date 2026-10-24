@@ -66,6 +66,8 @@ def health_check():
         "service": "Outcome Exchange Core Backend",
         "paypal_environment": settings.paypal_env,
         "paypal_live_configured": settings.has_real_paypal_credentials,
+        "llm_provider": settings.llm_provider,
+        "llm_live_configured": settings.has_real_llm_credentials,
         "database_connected": True,
-        "version": "0.1.0"
+        "version": "0.2.0"
     }

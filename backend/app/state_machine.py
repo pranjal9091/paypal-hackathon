@@ -37,7 +37,7 @@ class ContractStateMachine:
         ContractState.EXECUTING: [ContractState.VERIFIED_PASSED, ContractState.VERIFIED_FAILED, ContractState.CANCELLED],
         ContractState.VERIFIED_PASSED: [ContractState.AWAITING_BUYER_APPROVAL, ContractState.EXECUTING, ContractState.VOIDED],
         ContractState.VERIFIED_FAILED: [ContractState.EXECUTING, ContractState.VOIDED, ContractState.CANCELLED],
-        ContractState.AWAITING_BUYER_APPROVAL: [ContractState.PAID, ContractState.VOIDED, ContractState.CANCELLED],
+        ContractState.AWAITING_BUYER_APPROVAL: [ContractState.PAID, ContractState.EXECUTING, ContractState.VOIDED, ContractState.CANCELLED],
         ContractState.PAID: [], # Terminal success
         ContractState.VOIDED: [], # Terminal refund/cancellation
         ContractState.CANCELLED: [], # Terminal abort
@@ -65,8 +65,9 @@ class ContractStateMachine:
 
         # Enforce prerequisite invariants for critical financial states
         if target_state == ContractState.AWAITING_BUYER_APPROVAL:
-            # Must have passed verification AND must have an active authorization hold
-            if not contract.findings or not all(f.passed for f in contract.findings):
+            # Must have passed mandatory verification AND must have an active authorization hold
+            mandatory_findings = [f for f in contract.findings if f.is_mandatory]
+            if not mandatory_findings or not all(f.passed for f in mandatory_findings):
                 raise StateMachineError(
                     "Cannot transition to AWAITING_BUYER_APPROVAL: verification criteria have not all passed."
                 )

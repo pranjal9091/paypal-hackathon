@@ -128,7 +128,8 @@ async def confirm_authorization(
 
     # State update
     findings = db.query(VerificationFinding).filter(VerificationFinding.contract_id == contract.id).all()
-    verification_passed = len(findings) > 0 and all(f.passed for f in findings)
+    mandatory_findings = [f for f in findings if f.is_mandatory]
+    verification_passed = len(mandatory_findings) > 0 and all(f.passed for f in mandatory_findings)
 
     if contract.status == ContractState.HOLD_PENDING:
         ContractStateMachine.transition(
@@ -187,10 +188,11 @@ async def capture_payment(
             detail=f"Capture rejected: contract is in state '{contract.status}', must be in '{ContractState.AWAITING_BUYER_APPROVAL}'."
         )
 
-    # Gate 4: Verification completeness check
+    # Gate 4: Verification completeness check (mandatory deterministic checks)
     findings = db.query(VerificationFinding).filter(VerificationFinding.contract_id == contract.id).all()
-    if not findings or not all(f.passed for f in findings):
-        failed = [f.criterion_name for f in findings if not f.passed]
+    mandatory_findings = [f for f in findings if f.is_mandatory]
+    if not mandatory_findings or not all(f.passed for f in mandatory_findings):
+        failed = [f.criterion_name for f in mandatory_findings if not f.passed]
         raise HTTPException(
             status_code=400,
             detail=f"Capture blocked: deliverable verification has failed checks: {failed}"
