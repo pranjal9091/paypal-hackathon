@@ -1,7 +1,8 @@
 # Outcome Exchange — Independent Claims Audit & Verification Matrix
 
 > **Authoritative Technical Audit for PayPal AI Hackathon 2026**  
-> Evaluated against commit baseline `a9f6569` and verified via automated test suite (48 tests).
+> **Evaluation Baseline:** Milestone 6 (`ff8cfbb` + Milestone 6 hardening)  
+> **Verification Harness:** Automated test suite (55 passing tests in `backend/tests/`).  
 
 ---
 
@@ -35,9 +36,11 @@ We distinguish with total transparency between:
 | **CLM-11** | **Audit events survive browser refresh and application restart.** | **Verified by Automated Test** | `test_audit_history_persists_across_queries`. Events are persisted in SQLite `audit_events` table and ordered chronologically by `created_at`. |
 | **CLM-12** | **UI status indicators accurately reflect backend configuration.** | **Verified by Automated Test** | `GET /api/health` dynamically drives `PAYPAL: SANDBOX (MOCK/LIVE)` and `AI: DETERMINISTIC FALLBACK/LIVE` badges on `http://127.0.0.1:8000/`. |
 | **CLM-13** | **Receipt distinguishes actual provider transaction IDs from mock IDs.** | **Verified by Automated Test** | Mock identifiers are prefixed `MOCK-ORDER-`, `MOCK-AUTH-`, `MOCK-CAP-`. Receipt table explicitly displays `Rail Engine: PayPal Sandbox (Mock Engine)`. |
-| **CLM-14** | **Real PayPal Sandbox OAuth token exchange & Order creation.** | **Not Verified (Credentials Absent)** | Code complete in `paypal_client.py` (`/v1/oauth2/token` and `/v2/checkout/orders`), but `.env` credentials were not configured during audit. |
-| **CLM-15** | **Real PayPal Sandbox delayed capture.** | **Not Verified (Credentials Absent)** | Code complete in `paypal_client.py` (`/v2/payments/authorizations/{id}/capture`), but live network execution has not taken place. |
-| **CLM-16** | **Live Gemini / OpenAI LLM completion.** | **Not Verified (Credentials Absent)** | Code complete in `llm_client.py` (`_call_gemini`, `_call_openai`), but `LLM_API_KEY` is not present in environment. |
+| **CLM-14** | **Deterministic Idempotency Keys on Payment Routes.** | **Verified by Automated Test** | `test_deterministic_idempotency_keys_on_payment_routes`. Payment routes compute deterministic keys (`capture_{contract_id}_{auth_id}`, `void_{contract_id}_{auth_id}`, `order_{contract_id}`) when headers are omitted, preventing duplicate debit on replayed network requests. |
+| **CLM-15** | **Mutual Exclusion and State Integrity across Payment Transitions.** | **Verified by Automated Test** | `test_void_on_settled_contract_rejected`, `test_concurrent_or_sequential_double_capture_serialization`. `_capture_lock` serializes captures and voids in-process; terminal states reject reverse transitions. |
+| **CLM-16** | **Real PayPal Sandbox OAuth token exchange & Order creation.** | **Not Verified (Credentials Absent)** | Code complete in `paypal_client.py` (`/v1/oauth2/token` and `/v2/checkout/orders`), but `.env` credentials were not configured in this environment. |
+| **CLM-17** | **Real PayPal Sandbox delayed capture.** | **Not Verified (Credentials Absent)** | Code complete in `paypal_client.py` (`/v2/payments/authorizations/{id}/capture`), but live network execution has not taken place. |
+| **CLM-18** | **Live Gemini / OpenAI LLM completion.** | **Not Verified (Credentials Absent)** | Code complete in `llm_client.py` (`_call_gemini`, `_call_openai`), but `LLM_API_KEY` is not present in environment. |
 
 ---
 
@@ -70,13 +73,19 @@ The server-side state machine (`backend/app/state_machine.py`) manages transitio
 4. **Duplicate Capture Attempts**:
    - Second capture call encounters `payment.status == "CAPTURED"` or `contract.status == "PAID"`.
    - Rejects immediately with HTTP 409 Conflict; no duplicate capture is submitted to PayPal.
+5. **Simultaneous Capture and Void Attempts**:
+   - `_capture_lock` serializes requests within the current process; whichever executes first completes, and the second is rejected with HTTP 400/409.
 
 ---
 
-## 5. Current Known Limitations
+## 5. Current Known Limitations & Distributed Concurrency Boundaries
 
-1. **SQLite Concurrency on Ephemeral Hosting**:
-   - SQLite is single-writer. In production multi-tenant environments with hundreds of concurrent captures, migration to PostgreSQL with row-level locks (`SELECT ... FOR UPDATE`) is recommended.
+1. **Process-Local Mutex Scope**:
+   - `_capture_lock` in `routes/payments.py` is an in-memory `asyncio.Lock()`. It guarantees sequential execution of capture and void operations **within a single process event loop**.
+   - In a horizontally scaled production deployment (e.g., multiple Gunicorn workers or multi-container Kubernetes pods), this lock does not span instances. Concurrency in distributed deployments must rely on:
+     - PayPal's network-level idempotency header (`PayPal-Request-Id`).
+     - PostgreSQL database row-level locking (`SELECT ... FOR UPDATE`).
+     - Distributed locking via Redis (Redlock).
 2. **PayPal Webhooks vs Synchronous Relays**:
    - Authorization hold confirmation currently relies on the frontend relaying the approved order ID to `/confirm-authorization`. While validated against order tampering, production setups should pair this with an asynchronous PayPal Webhook listener (`PAYMENT.AUTHORIZATION.CREATED`).
 3. **Offline Development Runtime**:

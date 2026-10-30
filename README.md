@@ -6,8 +6,10 @@
 ---
 
 ## Quick Links for Hackathon Judges
-- **[Claims Audit & Verification Matrix](file:///Users/pranjalsingh/Downloads/paypal-hackathon/docs/CLAIMS_AUDIT.md)**: Line-by-line verification of 16 security and payment claims.
-- **[3-Minute Judge Demo Script](file:///Users/pranjalsingh/Downloads/paypal-hackathon/docs/DEMO_SCRIPT.md)**: Tightly timed walkthrough of all 3 demo scenarios.
+- **[Devpost Submission Draft](file:///Users/pranjalsingh/Downloads/paypal-hackathon/docs/DEVPOST_SUBMISSION_DRAFT.md)**: Official pitch, architecture, and submission overview.
+- **[Submission Readiness Checklist](file:///Users/pranjalsingh/Downloads/paypal-hackathon/docs/SUBMISSION_CHECKLIST.md)**: 13-point submission verification audit.
+- **[Claims Audit & Verification Matrix](file:///Users/pranjalsingh/Downloads/paypal-hackathon/docs/CLAIMS_AUDIT.md)**: Line-by-line verification of 18 security and payment claims.
+- **[Judge Demo Script (2:40)](file:///Users/pranjalsingh/Downloads/paypal-hackathon/docs/DEMO_SCRIPT.md)**: Tightly timed walkthrough of all 3 demo scenarios.
 - **[Judge Technical FAQ](file:///Users/pranjalsingh/Downloads/paypal-hackathon/docs/JUDGE_FAQ.md)**: Answers to architecture, payment safety, and AI governance questions.
 
 ---
@@ -59,17 +61,17 @@ In autonomous AI commerce, agents should never have unilateral authority to spen
 
 ---
 
-## 2. Milestone 5 Engineering & Verification Summary
+## 2. Milestone 6 Engineering & Submission Readiness
 
-Milestone 5 finalizes Outcome Exchange into a polished, technically defensible hackathon submission:
+Milestone 6 finalizes Outcome Exchange into a competition-grade, verified hackathon submission:
 
-| Area | Milestone Baseline | Milestone 5 Hardening | Status |
+| Area | Milestone Baseline | Milestone 6 Hardening | Status |
 | :--- | :--- | :--- | :--- |
-| **Claims Audit** | Informal claims | Exhaustive 16-point claims audit distinguishing automated tests, real provider tests, mocks, and known limitations. | **Audited (`docs/CLAIMS_AUDIT.md`)** |
-| **Payment Concurrency** | Route validation | Async mutex (`asyncio.Lock()`) serializes captures; duplicate requests rejected with HTTP 409 Conflict. | **Verified by automated tests** |
-| **Demo Isolation** | Global state | Workflow reset handler restores all agent badges, clears findings, resets gates, and wipes stale tokens. | **Verified reproducible** |
-| **Deployment Readiness** | Local-only bind | Added dynamic `PORT` binding, `0.0.0.0` default, production `Dockerfile`, `docker-compose.yml`, and `Procfile`. | **Container & PaaS Ready** |
-| **Audit Log Integrity** | Ambiguous term | Accurately characterized as an application-enforced append-only database audit log (not cryptographic). | **Truthfully Documented** |
+| **Deterministic Idempotency** | Random uuid fallbacks | Routes derive deterministic `PayPal-Request-Id` headers (`capture_{cid}_{auth_id}`, `void_{cid}_{auth_id}`, `order_{cid}`) to prevent duplicate charges across retried network requests. | **Verified by automated tests** |
+| **Payment Mutex Protection** | Capture-only lock | `_capture_lock` serializes both capture and void requests in-process; already settled contracts strictly reject void attempts. | **Verified by automated tests** |
+| **Robust LLM Parsing** | Strict direct JSON | `extract_json_object` parses model responses wrapped in markdown codeblocks (` ```json ` or ` ```markdown `) without losing valid AI output. | **Verified by automated tests** |
+| **Audit Provider Tracking** | Basic mode string | Summary and audit log explicitly record `provider`, `mode`, `model`, and `is_fallback` for each specialist agent. | **Audited (`docs/CLAIMS_AUDIT.md`)** |
+| **Submission Documentation** | Fragmented docs | Comprehensive Devpost submission draft, submission checklist (13 points), claims audit matrix (18 claims), and 2:40 video script. | **Submission Ready** |
 
 ---
 
@@ -139,7 +141,7 @@ The application will build and expose port `8000` with automated health checks e
 
 ---
 
-## 4. Automated Test Suite (48 Passing Tests)
+## 4. Automated Test Suite (55 Passing Tests)
 
 Run the complete automated test suite:
 ```bash
@@ -147,7 +149,15 @@ PYTHONPATH=backend backend/.venv/bin/pytest backend/tests/ -v
 ```
 
 ### Test Suite Structure
-* **`test_milestone4_security_regression.py` (11 tests):**
+* **`test_milestone6_competition_readiness.py` (7 tests):**
+  - `test_deterministic_idempotency_keys_on_payment_routes`: Confirms deterministic `PayPal-Request-Id` derived from contract and auth IDs.
+  - `test_void_on_settled_contract_rejected`: Confirms settled (PAID) contracts strictly reject subsequent void requests.
+  - `test_localization_agent_parses_markdown_fenced_json`: Verifies live LLM markdown-fenced JSON responses are parsed cleanly.
+  - `test_content_agent_cleans_fenced_markdown`: Verifies markdown code fences are stripped without corrupting H1 headers.
+  - `test_qa_agent_parses_fenced_qa_report`: Confirms QA agent parses fenced JSON correctly.
+  - `test_buyer_agent_live_enrichment`: Tests live LLM proposal extraction with structured JSON schemas.
+  - `test_audit_records_distinguish_model_and_fallback`: Verifies audit records explicitly distinguish live model vs fallback.
+* **`test_milestone4_security_regression.py` (12 tests):**
   - `test_forged_order_identifier_rejected`: Confirms invalid/forged order IDs are blocked with HTTP 400.
   - `test_forged_authorization_identifier_rejected`: Confirms forged authorization IDs cannot trigger settlement.
   - `test_failed_verification_cannot_be_overwritten`: Proves client cannot bypass verification findings.
@@ -159,6 +169,7 @@ PYTHONPATH=backend backend/.venv/bin/pytest backend/tests/ -v
   - `test_audit_history_persists_across_queries`: Validates audit log persistence across page refreshes.
   - `test_prompt_injection_payment_request_contained`: Verifies prompt injection cannot override budget.
   - `test_missing_deliverable_blocks_capture_at_route_level`: Route-level proof that 0 deliverables blocks capture.
+  - `test_concurrent_or_sequential_double_capture_serialization`: Verifies in-process serialization and 409 Conflict rejection.
 * **`test_buyer_agent_and_mcp.py` (12 tests):** Natural language parsing, clarification dialogues, MCP tool schema execution, and correlation ID tracing.
 * **`test_deterministic_verifier.py` (5 tests):** Syntax validation, missing keys, corrupted interpolation tokens (`{email}`), empty strings.
 * **`test_multi_agent_execution.py` (11 tests):** Bundle generation, missing sections, word-count violations, unsupported claims, and QA agent review containment.

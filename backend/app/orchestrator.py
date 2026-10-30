@@ -110,9 +110,24 @@ class MultiAgentOrchestrator:
                 deliv_qa.filename
             ],
             "providers": {
-                "localization": {"provider": loc_res["provider"], "mode": loc_res["mode"]},
-                "content": {"provider": content_res["provider"], "mode": content_res["mode"]},
-                "qa": {"provider": qa_res["provider"], "mode": qa_res["mode"]},
+                "localization": {
+                    "provider": loc_res["provider"],
+                    "mode": loc_res["mode"],
+                    "model": loc_res.get("model", "local-rule-engine-v1"),
+                    "is_fallback": loc_res.get("is_fallback", True)
+                },
+                "content": {
+                    "provider": content_res["provider"],
+                    "mode": content_res["mode"],
+                    "model": content_res.get("model", "local-rule-engine-v1"),
+                    "is_fallback": content_res.get("is_fallback", True)
+                },
+                "qa": {
+                    "provider": qa_res["provider"],
+                    "mode": qa_res["mode"],
+                    "model": qa_res.get("model", "local-rule-engine-v1"),
+                    "is_fallback": qa_res.get("is_fallback", True)
+                },
             }
         }
 

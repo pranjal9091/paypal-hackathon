@@ -39,7 +39,7 @@ async def create_hold_order(
     if contract.status in [ContractState.PAID, ContractState.VOIDED, ContractState.CANCELLED]:
         raise HTTPException(status_code=400, detail=f"Cannot create hold order: contract in {contract.status} state")
 
-    idempotency_key = paypal_request_id or f"order-{contract_id[:8]}-{uuid.uuid4().hex[:8]}"
+    idempotency_key = paypal_request_id or f"order_{contract_id}"
 
     try:
         order_res = await paypal_client.create_order(
@@ -120,7 +120,7 @@ async def confirm_authorization(
         # In mock mode, sync the order ID with payload
         payment.paypal_order_id = payload.paypal_order_id
 
-    idempotency_key = paypal_request_id or f"auth-{contract_id[:8]}-{uuid.uuid4().hex[:8]}"
+    idempotency_key = paypal_request_id or f"auth_{contract_id}_{payload.paypal_order_id}"
 
     try:
         auth_res = await paypal_client.authorize_order(
@@ -231,7 +231,7 @@ async def capture_payment(
         # Gate 6: Amount is strictly sourced from contract, never from client request
         capture_amount = contract.budget_amount
         capture_currency = contract.currency
-        idempotency_key = paypal_request_id or f"cap-{contract_id[:8]}-{uuid.uuid4().hex[:8]}"
+        idempotency_key = paypal_request_id or f"capture_{contract_id}_{payment.paypal_authorization_id}"
 
         try:
             cap_res = await paypal_client.capture_authorization(
@@ -271,33 +271,38 @@ async def void_payment(
 ):
     """
     Voids the authorization hold on failure or cancellation, releasing held funds immediately.
+    Serialized via process-local capture mutex to prevent race conditions with capture.
     """
-    contract = db.query(Contract).filter(Contract.id == contract_id).first()
-    if not contract:
-        raise HTTPException(status_code=404, detail="Contract not found")
+    async with _capture_lock:
+        contract = db.query(Contract).filter(Contract.id == contract_id).first()
+        if not contract:
+            raise HTTPException(status_code=404, detail="Contract not found")
 
-    payment = db.query(PaymentRecord).filter(PaymentRecord.contract_id == contract.id).first()
-    if not payment or not payment.paypal_authorization_id:
-        raise HTTPException(status_code=400, detail="No authorization hold found to void")
+        payment = db.query(PaymentRecord).filter(PaymentRecord.contract_id == contract.id).first()
+        if not payment or not payment.paypal_authorization_id:
+            raise HTTPException(status_code=400, detail="No authorization hold found to void")
 
-    idempotency_key = paypal_request_id or f"void-{contract_id[:8]}-{uuid.uuid4().hex[:8]}"
+        if payment.status in ["CAPTURED", "VOIDED"]:
+            raise HTTPException(status_code=400, detail=f"Cannot void payment with status '{payment.status}'")
 
-    try:
-        await paypal_client.void_authorization(payment.paypal_authorization_id, idempotency_key=idempotency_key)
-    except PayPalClientError as e:
-        raise HTTPException(status_code=e.status_code, detail=f"PayPal Void Error: {e.message}")
+        idempotency_key = paypal_request_id or f"void_{contract_id}_{payment.paypal_authorization_id}"
 
-    payment.status = "VOIDED"
-    db.commit()
+        try:
+            await paypal_client.void_authorization(payment.paypal_authorization_id, idempotency_key=idempotency_key)
+        except PayPalClientError as e:
+            raise HTTPException(status_code=e.status_code, detail=f"PayPal Void Error: {e.message}")
 
-    ContractStateMachine.transition(
-        db, contract, ContractState.VOIDED,
-        actor="buyer",
-        context={"authorization_id": payment.paypal_authorization_id, "status": "VOIDED"}
-    )
+        payment.status = "VOIDED"
+        db.commit()
 
-    db.refresh(payment)
-    return payment
+        ContractStateMachine.transition(
+            db, contract, ContractState.VOIDED,
+            actor="buyer",
+            context={"authorization_id": payment.paypal_authorization_id, "status": "VOIDED"}
+        )
+
+        db.refresh(payment)
+        return payment
 
 @router.get("/{contract_id}/receipt", response_model=AuditReceiptResponse)
 def get_audit_receipt(contract_id: str, db: Session = Depends(get_db)):

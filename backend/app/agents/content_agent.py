@@ -83,12 +83,18 @@ class ContentAgent:
         )
 
         content = llm_res.content
-        # Basic validation: if live output lacks H1 title, fall back to robust baseline
+        # Basic validation: clean markdown fences and ensure H1 title and key section
         if not llm_res.is_fallback:
-            if not content.startswith("# ") or "## El Problema" not in content:
+            cleaned = content.strip()
+            if cleaned.startswith("```"):
+                cleaned = re.sub(r"^```(?:markdown)?\s*", "", cleaned)
+                cleaned = re.sub(r"\s*```$", "", cleaned)
+            if not re.search(r"^#\s+[^\n]+", cleaned, flags=re.MULTILINE) or "## El Problema" not in cleaned:
                 content = fallback
                 llm_res.is_fallback = True
                 llm_res.mode = "fallback"
+            else:
+                content = cleaned
 
         return {
             "filename": "landing_page_es.md",

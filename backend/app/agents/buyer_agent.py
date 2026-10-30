@@ -51,6 +51,38 @@ RATIONALE_EXPLANATION = (
     "4) Automated factual claim screening prevents deceptive or legally non-compliant financial claims before payment settlement."
 )
 
+def extract_json_object(text: str) -> Optional[Dict[str, Any]]:
+    """Safely extracts a JSON object from text, handling markdown fences and extraneous prose."""
+    if not text:
+        return None
+    cleaned = text.strip()
+    try:
+        val = json.loads(cleaned)
+        if isinstance(val, dict):
+            return val
+    except Exception:
+        pass
+
+    m = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", text)
+    if m:
+        try:
+            val = json.loads(m.group(1).strip())
+            if isinstance(val, dict):
+                return val
+        except Exception:
+            pass
+
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        try:
+            val = json.loads(text[start:end+1])
+            if isinstance(val, dict):
+                return val
+        except Exception:
+            pass
+    return None
+
 class BuyerAgent:
     """
     Buyer Agent: Conversational Assistant for Contract Formulation & Payment Safety.
@@ -145,22 +177,58 @@ class BuyerAgent:
         description = "Localization of UI strings with placeholder preservation and high-converting Spanish landing page copy."
         
         # 4. Optional Live LLM Enrichment if configured
+        rationale_text = RATIONALE_EXPLANATION
         if not force_fallback and llm_client.is_live_configured:
             try:
                 llm_prompt = (
-                    f"Analyze this buyer request and extract the key requirements:\n"
-                    f"Request: {user_prompt}\n"
-                    f"Respond with JSON format: {{\"title\": \"...\", \"description\": \"...\"}}"
+                    f"Analyze this buyer procurement request:\n"
+                    f"'{user_prompt}'\n\n"
+                    f"Formulate a structured contract proposal in valid JSON format with keys:\n"
+                    f"- 'title': concise professional title\n"
+                    f"- 'description': detailed scope of work\n"
+                    f"- 'proposed_budget': string amount or null\n"
+                    f"- 'currency': currency code (e.g. 'USD')\n"
+                    f"- 'requested_deliverables': list of expected output files\n"
+                    f"- 'clarification_needed': string describing missing or contradictory info, or null if complete\n"
+                    f"- 'acceptance_criteria_rationale': string explaining why strict verification criteria are required\n"
+                    f"Respond ONLY with the JSON object."
                 )
+                fallback_obj = {
+                    "title": title,
+                    "description": description,
+                    "proposed_budget": extracted_budget,
+                    "currency": "USD",
+                    "requested_deliverables": deliverables,
+                    "clarification_needed": None,
+                    "acceptance_criteria_rationale": RATIONALE_EXPLANATION
+                }
                 res = await llm_client.generate(
                     prompt=llm_prompt,
-                    system_instruction="You are an autonomous procurement AI creating clear, concise digital work contracts.",
-                    fallback_content=json.dumps({"title": title, "description": description})
+                    system_instruction="You are an autonomous procurement AI creating clear, concise digital work contracts with strict safety boundaries.",
+                    fallback_content=json.dumps(fallback_obj)
                 )
                 if not res.is_fallback:
-                    parsed = json.loads(re.sub(r"^```json\s*|```$", "", res.content.strip()))
-                    title = parsed.get("title", title)
-                    description = parsed.get("description", description)
+                    parsed = extract_json_object(res.content)
+                    if parsed:
+                        if parsed.get("clarification_needed"):
+                            return ContractProposalResponse(
+                                title="Clarification Required",
+                                description=parsed.get("description", description),
+                                budget_amount="0.00",
+                                currency="USD",
+                                requested_deliverables=[],
+                                acceptance_criteria=[],
+                                acceptance_criteria_rationale="No criteria can be finalized until requirements are clarified.",
+                                clarification_needed=parsed["clarification_needed"],
+                                is_valid=False,
+                                source_strings={}
+                            )
+                        title = parsed.get("title", title)
+                        description = parsed.get("description", description)
+                        if parsed.get("requested_deliverables") and isinstance(parsed["requested_deliverables"], list):
+                            deliverables = [str(d) for d in parsed["requested_deliverables"] if d]
+                        if parsed.get("acceptance_criteria_rationale"):
+                            rationale_text = f"{parsed['acceptance_criteria_rationale']} {RATIONALE_EXPLANATION}"
             except Exception as e:
                 logger.warning(f"BuyerAgent live LLM enrichment failed, falling back to deterministic: {e}")
 
@@ -171,7 +239,7 @@ class BuyerAgent:
             currency="USD",
             requested_deliverables=deliverables,
             acceptance_criteria=ACCEPTANCE_CRITERIA_SPEC,
-            acceptance_criteria_rationale=RATIONALE_EXPLANATION,
+            acceptance_criteria_rationale=rationale_text,
             clarification_needed=None,
             is_valid=True,
             source_strings=DEFAULT_SOURCE_STRINGS

@@ -13,6 +13,38 @@ DEFAULT_SPANISH_TRANSLATIONS = {
     "cta_start_free": "Comienza tu prueba gratuita hoy"
 }
 
+def extract_json_object(text: str) -> Optional[Dict[str, Any]]:
+    """Safely extracts a JSON object from text, handling markdown fences and extraneous prose."""
+    if not text:
+        return None
+    cleaned = text.strip()
+    try:
+        val = json.loads(cleaned)
+        if isinstance(val, dict):
+            return val
+    except Exception:
+        pass
+
+    m = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", text)
+    if m:
+        try:
+            val = json.loads(m.group(1).strip())
+            if isinstance(val, dict):
+                return val
+        except Exception:
+            pass
+
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        try:
+            val = json.loads(text[start:end+1])
+            if isinstance(val, dict):
+                return val
+        except Exception:
+            pass
+    return None
+
 class LocalizationAgent:
     """
     Specialist Agent 1: Localization Agent.
@@ -84,18 +116,10 @@ class LocalizationAgent:
         content = llm_res.content
         # Validate that content parses as JSON if returned by live LLM; if not, fall back cleanly
         if not llm_res.is_fallback:
-            try:
-                # Strip markdown fences if LLM wrapped in ```json
-                cleaned = re.sub(r"^```json\s*", "", content.strip(), flags=re.MULTILINE)
-                cleaned = re.sub(r"```$", "", cleaned.strip(), flags=re.MULTILINE)
-                parsed = json.loads(cleaned)
-                if isinstance(parsed, dict):
-                    content = json.dumps(parsed, indent=2, ensure_ascii=False)
-                else:
-                    content = fallback_str
-                    llm_res.is_fallback = True
-                    llm_res.mode = "fallback"
-            except Exception:
+            parsed = extract_json_object(content)
+            if parsed is not None:
+                content = json.dumps(parsed, indent=2, ensure_ascii=False)
+            else:
                 content = fallback_str
                 llm_res.is_fallback = True
                 llm_res.mode = "fallback"

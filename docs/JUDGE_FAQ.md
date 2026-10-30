@@ -67,13 +67,14 @@ Capture authority is strictly restricted to the human buyer via **Gate 2**. In o
 ---
 
 ### 7. How are duplicate and concurrent captures handled?
-**Answer:** Duplicate captures are prevented at two layers:
-1. **Application Layer:** 
-   - An asynchronous lock (`asyncio.Lock()`) ensures capture requests for a contract are processed sequentially.
-   - The contract state machine allows capture only from `AWAITING_APPROVAL`. Once processed, the payment status transitions to `CAPTURED` and contract state to `SETTLED`. Any subsequent or replayed capture request immediately receives **HTTP 409 Conflict**.
-2. **PayPal Provider Layer:**
-   - Every capture request to PayPal Payments v2 includes a unique, deterministic `PayPal-Request-Id` header computed from the contract ID and authorization ID (`capture_{contract_id}_{auth_id}`).
-   - PayPal's API natively enforces idempotency on this header, preventing double-debits on the payment network.
+**Answer:** Duplicate captures and race conditions are mitigated across multiple complementary layers:
+1. **Application Mutex Layer (In-Process):** 
+   - An asynchronous lock (`_capture_lock = asyncio.Lock()`) serializes capture and void requests within the process event loop, preventing simultaneous execution of conflicting state transitions.
+   - The contract state machine allows capture only from `AWAITING_BUYER_APPROVAL`. Once processed, the payment status transitions to `CAPTURED` and contract state to `PAID`. Any subsequent or replayed capture request immediately receives **HTTP 409 Conflict**.
+   - Attempting to void an already settled payment is rejected with **HTTP 400 Bad Request**.
+2. **Payment Provider Network Layer (Distributed Idempotency):**
+   - Every capture and void request to PayPal Payments v2 includes a unique, deterministic `PayPal-Request-Id` header computed directly from the contract ID and authorization ID (`capture_{contract_id}_{auth_id}` and `void_{contract_id}_{auth_id}`).
+   - PayPal's API natively enforces network-level idempotency on this header. Even if network latency causes a client retry or multiple processes forward requests, PayPal guarantees single-charge execution on the payment rails.
 
 ---
 
@@ -85,7 +86,7 @@ Capture authority is strictly restricted to the human buyer via **Gate 2**. In o
 | **Backend & State Machine** | **Real (100%)** | FastAPI, SQLite, Pydantic schemas, and state machine transitions. |
 | **Deterministic Verifier** | **Real (100%)** | Full Python AST, JSON, and regex verification rules. |
 | **Audit Logging** | **Real (100%)** | Database-persisted, application-enforced append-only audit trail. |
-| **Automated Tests** | **Real (100%)** | 47 passing tests covering security, state machine, and edge cases. |
+| **Automated Tests** | **Real (100%)** | 55 passing tests covering security, state machine, idempotency, and edge cases. |
 | **PayPal Orders v2 Client** | **Real Code / Mock Sandbox Fallback** | Full PayPal REST integration implemented. If `PAYPAL_CLIENT_ID` is omitted, runs against transparent local mock engine. Live Sandbox is UNVERIFIED until credentials are supplied. |
 | **LLM Worker Agents** | **Real Code / Dual-Mode Fallback** | Gemini & OpenAI REST client implemented. If `LLM_API_KEY` is omitted, uses deterministic template fallback. Live LLM is UNVERIFIED until credentials are supplied. |
 
@@ -95,9 +96,10 @@ The UI displays real-time badges indicating whether PayPal and LLM are in Live o
 
 ### 9. What are the current architectural limitations?
 **Answer:**
-1. **Audit Log Cryptography:** The audit trail is an *application-enforced append-only log* stored in SQLite. It does not employ cryptographic hash chains (Merkle trees) or distributed consensus. A database administrator with direct disk access could theoretically modify records.
-2. **Worker Agent Execution:** Worker agents currently run asynchronously in-process. In a high-scale production deployment, these would be decoupled into worker queues (e.g., Celery, Redis, or temporal workflows).
-3. **SQLite Ephemeral Persistence:** On serverless container hosts with ephemeral disks, SQLite database files reset on container restart unless a persistent volume (e.g., AWS EBS, Fly.io volume, GCP Persistent Disk) is mounted.
+1. **Process-Local Mutex vs Distributed Locking:** The capture mutex (`_capture_lock`) is an in-process asyncio lock. In a horizontally scaled production deployment with multiple worker processes or containers, it should be paired with PostgreSQL row-level locks (`SELECT ... FOR UPDATE`) or Redis distributed locking (Redlock).
+2. **Audit Log Cryptography:** The audit trail is an *application-enforced append-only log* stored in SQLite. It does not employ cryptographic hash chains (Merkle trees) or distributed consensus. A database administrator with direct disk access could theoretically modify records.
+3. **Worker Agent Execution:** Worker agents currently run asynchronously in-process. In a high-scale production deployment, these would be decoupled into worker queues (e.g., Celery, Redis, or Temporal workflows).
+4. **SQLite Ephemeral Persistence:** On serverless container hosts with ephemeral disks, SQLite database files reset on container restart unless a persistent volume (e.g., AWS EBS, Fly.io volume, GCP Persistent Disk) is mounted.
 
 ---
 
