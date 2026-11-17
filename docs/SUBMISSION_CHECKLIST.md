@@ -39,3 +39,4 @@
    Follow `docs/DEMO_SCRIPT.md` strictly (target 2:40). Ensure status badges (`PAYPAL: SANDBOX (MOCK)`, `AI: DETERMINISTIC FALLBACK`) are visible and explained honestly.
 3. **Copy Submission Content**:
    Copy the contents of `docs/DEVPOST_SUBMISSION_DRAFT.md` into the Devpost submission portal, filling in the YouTube URL and public GitHub repository URL.
+

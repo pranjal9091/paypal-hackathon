@@ -1,0 +1,61 @@
+# OutcomePay — outcome-settled autonomous agent payments on Casper
+
+**An AI agent pays for real-world work on its own — but the money is escrowed in a
+Casper smart contract and released only when the outcome is machine-verified, under
+a hard on-chain budget cap the agent physically cannot exceed. Every settlement
+emits a verifiable on-chain receipt.**
+
+**Live demo:** https://evidai.github.io/casper-outcomepay/  ·  **🔥 Drive it with your Casper Wallet (Testnet):** https://evidai.github.io/casper-outcomepay/ui/live.html  ·  **Repo:** https://github.com/evidai/casper-outcomepay
+
+> Casper Agentic Buildathon 2026 — Qualification Round. Theme: Agentic AI × DeFi × RWA.
+
+## The problem
+
+Agents that pay autonomously are dangerous in two ways:
+1. **Overspend** — a runaway loop drains the wallet. "Set a budget" in code isn't enforceable once the agent holds keys.
+2. **Pay for nothing** — the agent pays, the work fails, the money is gone. There's no "pay only if it actually worked."
+
+Existing x402 gateways move money on request. They don't *escrow*, don't enforce a
+*cap on-chain*, and don't condition release on a *verified outcome*.
+
+## The solution
+
+OutcomePay puts the **budget cap and the settlement condition on-chain**, in a Casper
+contract, so they're enforced by consensus — not by trusting the agent's code.
+
+```
+Agent needs a real-world task done (e.g. "fix the high/critical CVEs in this repo")
+        │
+        ▼
+1. LOCK   agent calls escrow.lock(job_id, amount)         ── on-chain budget cap checked here:
+          the contract refuses if total locked > cap        the agent CANNOT exceed its cap
+        │
+        ▼
+2. WORK   the service performs the task (off-chain)
+        │
+        ▼
+3. VERIFY a machine check produces a binary outcome         ── the oracle: pass/fail is a fact,
+          (CVE: high+critical == 0 AND tests green)            not a human opinion
+        │
+        ├─ PASS → escrow.settle(job_id)  → funds released to provider + SettlementEvent receipt
+        └─ FAIL → escrow.refund(job_id)  → funds returned to payer (green-or-no-fee), on-chain
+```
+
+The agent gets autonomy; the chain guarantees it can't overspend and won't pay for
+unverified work. The receipt is permanent and auditable.
+
+## Why this is more than an x402 gateway
+
+| | x402 gateway (existing) | OutcomePay |
+|---|---|---|
+| Moves money on request | ✅ | ✅ |
+| Hard budget cap **enforced on-chain** | ❌ | ✅ |
+| Funds **escrowed**, not sent immediately | ❌ | ✅ |
+| Release **conditioned on verified outcome** | ❌ | ✅ (settle vs refund) |
+| Verifiable on-chain **receipt** per settlement | partial | ✅ SettlementEvent |
+| Pay-only-on-success (green-or-no-fee) | ❌ | ✅ |
+
+## Architecture
+
+- **`contract/`** — Casper smart contract (Odra/Rust), deployed to **Casper Testnet**:
+  per-agent bu
